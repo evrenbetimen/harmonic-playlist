@@ -1,0 +1,3 @@
+# Avoid scanning build output and vendored dependencies twice.
+/target/
+/gen/

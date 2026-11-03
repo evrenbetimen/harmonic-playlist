@@ -1,0 +1,28 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.local
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+
+*.log
+npm-debug.log*
+
+# Desktop shell (Faz 5)
+src-tauri/target/
+src-tauri/gen/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Tauri / Rust build output
+src-tauri/target/
+src-tauri/gen/
