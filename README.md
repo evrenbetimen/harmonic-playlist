@@ -23,6 +23,7 @@ Spotify kütüphanesini (veya yerleşik demo krate'ini) analiz eder; tonal olara
 | **Analitik** | Geçiş not dağılımı, ton histogramı, BPM histogramı, enerji sapması, sanatçı tekrarı, veri kaynakları ve sorunlu geçiş listesi. |
 | **Önizleme** | Spotify 30 sn MP3'ü Web Audio ile çalar; gerçek gain-ramp crossfade uygular. Demo şarkılarda anahtar + BPM'e senkron synth pad çalar. |
 | **Spotify** | PKCE OAuth, token yenileme, 401/429 yönetimi, arama önbelleği, çalma listesi yayınlama. |
+| **Çalma listesi içe aktarma** | Hesabındaki çalma listelerini listeler; seçileni 300 parçaya kadar krate olarak yükler (yerel dosya/podcast satırları atlanır). Yeni oturumda `playlist-read-private` izni istenir. |
 | **Masaüstü** | Tauri 2: macOS `.dmg`, Windows `.exe`/`.msi`, loopback OAuth (sistem tarayıcısı + `127.0.0.1:8888`), native pencere. |
 
 Demo modu **kimlik bilgisi gerektirmez**: uygulama ilk açılışta 190 prosedürel şarkıdan (65'i Afro House) 40 şarkılık bir set üretir. Aynı tohum (`0x2027`) sayesinde herkes aynı demo krate'ini görür.
@@ -224,7 +225,7 @@ http://127.0.0.1:8888/auth/callback   ← masaüstü uygulaması
 | `npm run dev` | Vite dev sunucusu (`:5199`), HMR |
 | `npm run build` | Tip kontrolü + production build (`dist/`) |
 | `npm run preview` | Build'i yerel olarak sun |
-| `npm test` | 70 Vitest testi (Camelot, harmoni, BPM, sequencer, store) |
+| `npm test` | 75 Vitest testi (Camelot, harmoni, BPM, sequencer, store, auth) |
 | `npm run test:watch` | Testleri izleme modunda çalıştır |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test:coverage` | Kapsam raporu (Vitest coverage) |
@@ -268,7 +269,7 @@ harmonic-playlist/
 │  ├─ capabilities/          # İzinler (opener, drag)
 │  └─ icons/                 # Uygulama simgeleri
 ├─ .github/workflows/        # macOS .dmg + Windows .exe CI
-├─ tests/                    # 70 Vitest birim + entegrasyon testi
+├─ tests/                    # 75 Vitest birim + entegrasyon testi
 ├─ docs/                     # Roadmap, mimari, QC planı
 └─ vite.config.ts            # alias, worker formatı, test ayarları
 ```
@@ -306,7 +307,7 @@ Ayrıntılı veri akışı, worker protokolü, ses grafiği ve sağlayıcı soyu
 
 ## Kalite
 
-- **70 test / 5 dosya** — Camelot tablosu referans değerleriyle doğrulanır (`8A = A min`, `8B = C maj`, `5A = C min`, `1B = B maj`).
+- **75 test / 6 dosya** — Camelot tablosu referans değerleriyle doğrulanır (`8A = A min`, `8B = C maj`, `5A = C min`, `1B = B maj`).
 - Harmonik skorlar, yarım ton çakışması, tritone sınırı, BPM katlama, enerji eğrisi ve deterministik set üretimi test edilir.
 - Krate filtreleme, rota adaylarının farklılaşması, `setPlan` ve `appendTrack` sözleşmeleri store seviyesinde test edilir.
 - `npx tsc --noEmit` temiz, `npm run build` başarılı.

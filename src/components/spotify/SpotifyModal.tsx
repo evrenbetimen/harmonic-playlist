@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/format';
-import { isSpotifyConfigured, spotifyConfig, beginLogin, checkRedirectConfig, recommendedRedirectUri } from '@/services/spotify/auth';
-import { loadSpotifyCrate, publishPlaylist } from '@/services/spotify/library';
+import {
+  isSpotifyConfigured,
+  spotifyConfig,
+  beginLogin,
+  checkRedirectConfig,
+  missingPlaylistScopes,
+  recommendedRedirectUri,
+} from '@/services/spotify/auth';
+import {
+  listUserPlaylists,
+  loadPlaylistCrate,
+  loadSpotifyCrate,
+  publishPlaylist,
+} from '@/services/spotify/library';
+import type { SpotifyPlaylist } from '@/services/spotify/client';
 import { useSetStore } from '@/state/useSetStore';
 import { useAuthStore } from '@/state/useAuthStore';
-import { IconCheck, IconSpotify, IconX, IconZap } from '@/components/ui/icons';
+import { IconCheck, IconDisc, IconSpotify, IconX, IconZap } from '@/components/ui/icons';
 
 interface Props {
   open: boolean;
@@ -13,11 +26,22 @@ interface Props {
 
 const GENRES = ['afro-house', 'melodic-house', 'tech-house', 'progressive-house', 'organic-house', 'techno'];
 
+function initials(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'SP';
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
 export function SpotifyModal({ open, onClose }: Props) {
   const [genre, setGenre] = useState('afro-house');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[] | null>(null);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
 
   const loadTracks = useSetStore((s) => s.loadTracks);
   const plan = useSetStore((s) => s.plan);
@@ -36,6 +60,7 @@ export function SpotifyModal({ open, onClose }: Props) {
   const configured = isSpotifyConfigured();
   const loggedIn = authStatus === 'connected';
   const redirectCheck = checkRedirectConfig();
+  const missingScopes = loggedIn ? missingPlaylistScopes() : [];
 
   const handleLoad = async () => {
     setBusy(true);
@@ -48,6 +73,39 @@ export function SpotifyModal({ open, onClose }: Props) {
       setInfo(`${tracks.length} şarkı yüklendi. Krate hazır.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Bilinmeyen hata');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handlePlaylists = async () => {
+    setLoadingPlaylists(true);
+    setError(null);
+    setInfo(null);
+    try {
+      setPlaylists(await listUserPlaylists());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Playlistler yüklenemedi');
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  };
+
+  const handleImport = async (playlist: SpotifyPlaylist) => {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const tracks = await loadPlaylistCrate(playlist.id, 'playlist');
+      if (tracks.length === 0) {
+        throw new Error(
+          'Bu çalma listesindeki şarkılar için ses özellikleri bulunamadı. Yerel dosyalar ve podcast bölümleri içe aktarılamaz.',
+        );
+      }
+      loadTracks(tracks, 'spotify');
+      setInfo(`${tracks.length} şarkı "${playlist.name}" listesinden yüklendi.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Çalma listesi yüklenemedi');
     } finally {
       setBusy(false);
     }
@@ -212,23 +270,38 @@ export function SpotifyModal({ open, onClose }: Props) {
 
           {configured && loggedIn && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/[0.07] px-3 py-2">
-                <IconCheck className="h-4 w-4 shrink-0 text-[#1DB954]" />
+              <div className="flex items-center gap-2.5 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/[0.07] px-3 py-2">
                 {profile?.images?.[0]?.url ? (
                   <img
                     src={profile.images[0].url}
                     alt=""
-                    className="h-6 w-6 rounded-full object-cover ring-1 ring-white/15"
+                    className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-white/15"
                     referrerPolicy="no-referrer"
                   />
-                ) : null}
-                <span className="min-w-0 truncate text-[11px] font-medium text-fog-100">
-                  {profile?.display_name ? `${profile.display_name} bağlı` : 'Spotify bağlı'}
-                </span>
+                ) : (
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1DB954]/25 text-[10px] font-bold text-[#1DB954]">
+                    {initials(profile?.display_name)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 truncate text-[11.5px] font-semibold text-white">
+                    {profile?.display_name ?? 'Spotify bağlı'}
+                    <IconCheck className="h-3 w-3 shrink-0 text-[#1DB954]" />
+                  </p>
+                  <p className="truncate text-[9px] text-fog-400">
+                    {profile?.email ?? profile?.id ?? 'Bağlantı doğrulanıyor…'}
+                    {profile?.product === 'premium' && (
+                      <span className="ml-1.5 rounded bg-[#1DB954]/20 px-1 text-[8px] font-semibold uppercase tracking-wide text-[#1DB954]">
+                        premium
+                      </span>
+                    )}
+                  </p>
+                </div>
                 <button
-                  className="ml-auto shrink-0 text-[9px] text-fog-400 underline-offset-2 hover:text-fog-200 hover:underline"
+                  className="shrink-0 text-[9px] text-fog-400 underline-offset-2 hover:text-fog-200 hover:underline"
                   onClick={() => {
                     disconnect();
+                    setPlaylists(null);
                     setInfo(null);
                     onClose();
                   }}
@@ -252,8 +325,89 @@ export function SpotifyModal({ open, onClose }: Props) {
                 </div>
               )}
 
+              {missingScopes.length > 0 && (
+                <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.07] p-3">
+                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-amber-300">
+                    Ek izin gerekli
+                  </p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-fog-300">
+                    Çalma listelerini listelemek için okuma izni gerekiyor. Oturumun eski
+                    sürümden kaldığı için bu izin yok — bir kez daha giriş yap.
+                  </p>
+                  <button
+                    className="mt-2 text-[10px] font-medium text-neon-mint underline underline-offset-2"
+                    onClick={() => {
+                      setError(null);
+                      beginLogin().catch((e: Error) => setError(e.message));
+                    }}
+                  >
+                    İzni yenile →
+                  </button>
+                </div>
+              )}
+
               <div>
-                <p className="label-xs mb-2">Krate Janrası</p>
+                <div className="mb-2 flex items-baseline justify-between">
+                  <p className="label-xs">
+                    <IconDisc className="mr-1 inline h-3 w-3" />
+                    Çalma listelerin
+                  </p>
+                  <button
+                    className="text-[9px] text-fog-400 underline-offset-2 hover:text-neon-mint hover:underline disabled:opacity-50"
+                    onClick={() => void handlePlaylists()}
+                    disabled={loadingPlaylists || busy || missingScopes.length > 0}
+                  >
+                    {loadingPlaylists ? 'Yükleniyor…' : playlists ? 'Yenile' : 'Listele'}
+                  </button>
+                </div>
+
+                {playlists === null && (
+                  <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] leading-relaxed text-fog-400">
+                    Çalma listelerini listeleyip içindeki şarkılardan doğrudan krate
+                    oluşturabilirsin. Önce "Listele"ye bas.
+                  </p>
+                )}
+
+                {playlists !== null && playlists.length === 0 && (
+                  <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] text-fog-400">
+                    Bu hesapta çalma listesi bulunamadı.
+                  </p>
+                )}
+
+                {playlists !== null && playlists.length > 0 && (
+                  <div className="scroll-slim max-h-[190px] space-y-1 overflow-y-auto pr-0.5">
+                    {playlists.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => void handleImport(p)}
+                        disabled={busy}
+                        className="flex w-full items-center gap-2 rounded-lg border border-white/[0.055] bg-white/[0.025] px-2 py-1.5 text-left transition hover:border-neon-mint/30 hover:bg-neon-mint/[0.06] disabled:opacity-50"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded bg-white/[0.05]">
+                          {p.images?.[0]?.url ? (
+                            <img src={p.images[0].url} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <IconDisc className="h-3 w-3 text-fog-400" />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[10.5px] font-medium text-fog-100">
+                            {p.name}
+                          </span>
+                          <span className="num block truncate text-[8.5px] text-fog-400">
+                            {p.tracks.total} parça
+                            {p.owner?.id !== profile?.id ? ` · ${p.owner?.display_name ?? 'başka hesap'}` : ''}
+                            {p.public === false ? ' · özel' : ''}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-white/[0.06] pt-3">
+                <p className="label-xs mb-2">Janradan keşfet</p>
                 <div className="flex flex-wrap gap-1.5">
                   {GENRES.map((g) => (
                     <button
@@ -266,16 +420,19 @@ export function SpotifyModal({ open, onClose }: Props) {
                     </button>
                   ))}
                 </div>
+                <button
+                  className="btn-neon mt-2.5 w-full"
+                  onClick={handleLoad}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-950/30 border-t-ink-950" />
+                  ) : (
+                    <IconSpotify className="h-4 w-4" />
+                  )}
+                  Kütüphaneyi Yükle
+                </button>
               </div>
-
-              <button className="btn-neon w-full" onClick={handleLoad} disabled={busy}>
-                {busy ? (
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-950/30 border-t-ink-950" />
-                ) : (
-                  <IconSpotify className="h-4 w-4" />
-                )}
-                Kütüphaneyi Yükle
-              </button>
 
               <button
                 className="btn-ghost w-full"

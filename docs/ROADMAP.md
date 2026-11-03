@@ -105,7 +105,7 @@ Bugünkü tek paketli yapı, Faz 5'e kadar korunabilir. Monorepo'ya geçiş, mas
 | Krate ekranı | ✅ Tamam | Havuz görünürlüğü, filtre, sete ekleme |
 | Harmonik Rotalar | ✅ Tamam | 5 aday rota, tek tıkla aktif |
 | Analitik | ✅ Tamam | Histogramlar, sapma, kaynak dağılımı |
-| Testler | ✅ 70 test | Motor + store + entegrasyon |
+| Testler | ✅ 75 test | Motor + store + auth + entegrasyon |
 | Hata sınırı | ✅ Tamam | ErrorBoundary + store hata bandı |
 | Masaüstü kabuk | ✅ Tamam | Tauri 2, loopback OAuth, `.dmg` üretildi |
 | Windows kurulumu | ⚠️ CI hazır | `.exe`/`.msi` Windows runner'da üretiliyor |

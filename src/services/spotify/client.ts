@@ -156,6 +156,67 @@ export async function getAudioFeatures(
   }
 }
 
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  description: string | null;
+  images: SpotifyImage[] | null;
+  owner: { id: string; display_name: string | null };
+  tracks: { total: number; href?: string };
+  public: boolean | null;
+  collaborative?: boolean;
+  external_urls: { spotify: string };
+}
+
+export async function getUserPlaylists(limit = 50): Promise<SpotifyPlaylist[]> {
+  const out: SpotifyPlaylist[] = [];
+  let offset = 0;
+  // One page is enough for the picker; the modal says so if there are more.
+  while (out.length < limit) {
+    const params = new URLSearchParams({
+      limit: String(Math.min(50, limit - out.length)),
+      offset: String(offset),
+    });
+    const data = await spotifyFetch<{ items: SpotifyPlaylist[]; next: string | null }>(
+      `/me/playlists?${params}`,
+    );
+    out.push(...data.items.filter(Boolean));
+    if (!data.next || data.items.length === 0) break;
+    offset += data.items.length;
+  }
+  return out;
+}
+
+/** Reads a playlist's tracks. `limit` caps API pages (100 tracks each). */
+export async function getPlaylistTracks(
+  playlistId: string,
+  limit = 300,
+): Promise<SpotifyTrack[]> {
+  const out: SpotifyTrack[] = [];
+  let offset = 0;
+  while (out.length < limit) {
+    const params = new URLSearchParams({
+      limit: '100',
+      offset: String(offset),
+      additional_types: 'track',
+    });
+    const data = await spotifyFetch<{
+      items: Array<{ track: SpotifyTrack | null; is_local?: boolean }>;
+      next: string | null;
+    }>(`/playlists/${playlistId}/tracks?${params}`);
+
+    for (const item of data.items) {
+      // `is_local` entries have no Spotify id, so they cannot be published back
+      // or enriched with features. Skip them instead of poisoning the crate.
+      if (!item?.track || item.is_local || !item.track.id) continue;
+      out.push(item.track);
+    }
+    if (!data.next || data.items.length === 0) break;
+    offset += data.items.length;
+  }
+  return out.slice(0, limit);
+}
+
 export async function createPlaylist(
   userId: string,
   name: string,

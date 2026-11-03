@@ -6,13 +6,16 @@ import {
   createPlaylist,
   getAudioFeatures,
   getMe,
+  getPlaylistTracks,
   getReccoFeatures,
   getTracks,
+  getUserPlaylists,
   normaliseReccoFeatures,
   normaliseSpotifyFeatures,
   searchTracks,
   SpotifyError,
   type NormalisedFeatures,
+  type SpotifyPlaylist,
   type SpotifyTrack,
 } from './client';
 import type { PlanResult } from '@/core/types';
@@ -176,4 +179,42 @@ export async function publishPlaylist(name: string, plan: PlanResult): Promise<s
     plan.slots.filter((s) => !s.track.id.startsWith('demo-')).map((s) => s.track.uri),
   );
   return playlist.external_urls.spotify;
+}
+
+/**
+ * Loads a crate straight from one of the user's playlists.
+ *
+ * Unlike the discovery path this does not need `/search`: the tracks are known,
+ * only their audio features have to be resolved. Feature failures for individual
+ * tracks are dropped (with the rest of the playlist still usable) instead of
+ * failing the whole import.
+ */
+export async function loadPlaylistCrate(
+  playlistId: string,
+  genre = 'playlist',
+): Promise<TrackWithKey[]> {
+  const tracks = await getPlaylistTracks(playlistId, 300);
+  if (tracks.length === 0) return [];
+
+  const ids = tracks.map((t) => t.id);
+  const features = await loadFeatures(ids);
+
+  return tracks
+    .map((t) => {
+      const f = features.get(t.id);
+      if (!f) return null;
+      return toTrackWithKey(mapTrack(t, f, genre));
+    })
+    .filter(
+      (t): t is TrackWithKey =>
+        t != null && Number.isFinite(t.features.tempo) && t.features.tempo > 0,
+    );
+}
+
+/** Lightweight playlist summary for the picker (no track hydration). */
+export async function listUserPlaylists(limit = 50): Promise<SpotifyPlaylist[]> {
+  const playlists = await getUserPlaylists(limit);
+  // Spotify returns entries with a null `owner` when a collaborative playlist
+  // lost its owner; those cannot be opened reliably.
+  return playlists.filter((p) => p?.id && p.owner);
 }

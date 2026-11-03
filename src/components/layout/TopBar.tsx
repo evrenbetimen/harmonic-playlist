@@ -109,24 +109,31 @@ export function TopBar({ query, onQuery, onOpenSpotify }: Props) {
 
         <button
           className={cn(
-            'ml-1 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold ring-1 transition',
+            'ml-1 flex h-8 shrink-0 items-center gap-2 rounded-full text-[10px] font-bold ring-1 transition',
             connected
-              ? 'bg-gradient-to-br from-[#1DB954]/80 to-neon-cyan/60 text-ink-950 ring-[#1DB954]/40'
-              : 'bg-gradient-to-br from-neon-mint/80 to-neon-cyan/60 text-ink-950 ring-white/20',
+              ? 'bg-gradient-to-br from-[#1DB954]/80 to-neon-cyan/60 pl-1 pr-2.5 text-ink-950 ring-[#1DB954]/40'
+              : 'w-8 justify-center bg-gradient-to-br from-neon-mint/80 to-neon-cyan/60 text-ink-950 ring-white/20',
           )}
           onClick={onOpenSpotify}
           aria-label={connected ? 'Spotify hesabı' : 'Spotify hesabına bağlan'}
           title={profile?.display_name ?? (connected ? 'Spotify bağlı' : 'Spotify Bağla')}
         >
-          {profile?.images?.[0]?.url ? (
-            <img
-              src={profile.images[0].url}
-              alt=""
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            initials(profile?.display_name, connected)
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink-950/20">
+            {profile?.images?.[0]?.url ? (
+              <img
+                src={profile.images[0].url}
+                alt=""
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              initials(profile?.display_name, connected)
+            )}
+          </span>
+          {connected && profile?.display_name && (
+            <span className="hidden max-w-[110px] truncate text-[10px] font-semibold tracking-tight text-ink-950 xl:inline">
+              {profile.display_name}
+            </span>
           )}
         </button>
       </div>

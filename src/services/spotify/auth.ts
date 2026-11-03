@@ -21,6 +21,8 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SCOPES = [
   'user-read-private',
   'user-read-email',
+  'playlist-read-private',
+  'playlist-read-collaborative',
   'playlist-modify-public',
   'playlist-modify-private',
   'user-library-read',
@@ -61,6 +63,20 @@ export const spotifyConfig = {
 
 export function isSpotifyConfigured(): boolean {
   return spotifyConfig.clientId.trim().length > 0;
+}
+
+/**
+ * Scopes that were added after the first release. An old session keeps working
+ * for reading /me, but playlist browsing silently 403s — so the UI asks for a
+ * re-login instead of showing an empty list with no explanation.
+ */
+const PLAYLIST_READ_SCOPES = ['playlist-read-private', 'playlist-read-collaborative'];
+
+export function missingPlaylistScopes(): string[] {
+  const token = getToken();
+  const granted = new Set((token?.scope ?? '').split(/\s+/).filter(Boolean));
+  if (!token) return [];
+  return PLAYLIST_READ_SCOPES.filter((scope) => !granted.has(scope));
 }
 
 /** The URI to paste into the Spotify dashboard for the current build/target. */

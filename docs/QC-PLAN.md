@@ -20,7 +20,7 @@
             └──────────────────────────────┘
 ```
 
-Mevcut durum: **70 test / 5 dosya**, tümü geçiyor.
+Mevcut durum: **75 test / 6 dosya**, tümü geçiyor.
 
 | Dosya | Test | Kapsam |
 | --- | --- | --- |
@@ -29,6 +29,7 @@ Mevcut durum: **70 test / 5 dosya**, tümü geçiyor.
 | `tests/bpm.test.ts` | 10 | Birebir, küçük düzeltme, beatmatch, red, half/double-time, bozuk metadata |
 | `tests/sequencer.test.ts` | 15 | Uçtan uca üretim, determinizm, BPM penceresi, enerji eğrisi, köprü, boş krate, sürükle-bırak sonrası yeniden hesap |
 | `tests/views.test.ts` | 12 | Krate filtresi, janra sayımı, `setPlan`, `appendTrack` (tekrar/boş plan), rota adaylarının farklılaşması, sertliğin saflığa etkisi |
+| `tests/auth.test.ts` | 5 | Eski oturumda eksik playlist okuma izni tespiti, bozuk token'da çökmeme, authorize URL'inin doğru scope'ları istemesi |
 
 Çalıştırma:
 
@@ -180,6 +181,13 @@ Her sürüm adayında (release candidate) uygulanır. İşaretleme: ✅ geçti �
 ### 4.8 Spotify akışı (credential varsa)
 
 - [ ] Giriş sonrası kullanıcı adı/avatar görünüyor.
+- [ ] Üst çubukta avatarın yanında görünen ad yazıyor (geniş ekranda); sadece baş harf değil.
+- [ ] Spotify modal'ı ad, e-posta ve `premium` rozetini gösteriyor.
+- [ ] "Listele" çalma listelerini getiriyor; her satırda kapak, ad, parça sayısı ve özel/genel durumu var.
+- [ ] Bir çalma listesine tıklamak içindeki şarkıları krate olarak yüklüyor; kaynak rozeti `SPOTIFY` oluyor.
+- [ ] Eski (playlist okuma izni olmayan) oturumda "Ek izin gerekli" kutusu çıkıyor ve "Listele" pasif kalıyor.
+- [ ] "İzni yenile" yeniden giriş akışını başlatıyor; dönüşte liste açılıyor.
+- [ ] Yalnızca yerel dosya / podcast içeren çalma listesinde boş liste yerine açıklayıcı hata görünüyor.
 - [ ] Tür seçimi gerçek krate yüklüyor; kaynak rozeti `spotify`/`reccobeats`.
 - [ ] `/audio-features` 403 dönerse ReccoBeats'e düşüyor.
 - [ ] Her iki sağlayıcı da başarısızsa açıklayıcı hata görünüyor.
