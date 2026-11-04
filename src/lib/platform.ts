@@ -26,7 +26,8 @@ export function isDesktop(): boolean {
 /** Origin the app is actually running on, normalised for display/logging. */
 export function currentOrigin(): string {
   if (isDesktop()) return 'tauri://localhost';
-  return window.location.origin;
+  const location = (globalThis as { location?: { origin?: string } }).location;
+  return location?.origin ?? 'http://127.0.0.1:5199';
 }
 
 /**

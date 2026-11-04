@@ -52,12 +52,21 @@ export interface SpotifyToken {
   scope?: string;
 }
 
+// `window` must not be touched at module scope: this file is imported by the
+// API client, which is imported by contract tests that run in Node. Locally a
+// `.env` value hides the problem because `??` short-circuits; in CI (no .env)
+// the fallback evaluated `window.location` and threw at import time.
+function browserOrigin(): string {
+  const location = (globalThis as { location?: { origin?: string } }).location;
+  return location?.origin ?? 'http://127.0.0.1:5199';
+}
+
 export const spotifyConfig = {
   clientId: (import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined) ?? '',
   redirectUri: isDesktop()
     ? DESKTOP_REDIRECT_URI
     : ((import.meta.env.VITE_SPOTIFY_REDIRECT_URI as string | undefined) ??
-      `${window.location.origin}/auth/callback`),
+      `${browserOrigin()}/auth/callback`),
   scopes: SCOPES,
 };
 
