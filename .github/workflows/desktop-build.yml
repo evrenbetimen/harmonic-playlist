@@ -45,7 +45,7 @@ jobs:
   macos:
     name: macOS (dmg, Apple Silicon)
     needs: verify
-    # Apple Silicon only. The app targets M-series Macs (macOS 12+), so there is
+    # Apple Silicon only. The app targets M-series Macs (macOS 11+), so there is
     # no x86_64 slice to cross-compile and no Rosetta fallback to maintain.
     # `macos-latest` is an arm64 runner; the larger arm64 pool occasionally
     # fails to acquire a machine, in which case the job simply retries.
