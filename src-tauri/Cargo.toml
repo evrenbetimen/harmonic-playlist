@@ -1,6 +1,6 @@
 [package]
 name = "harmonic-playlist"
-version = "0.1.0"
+version = "0.1.1"
 description = "Camelot-aware, energy-profiled DJ set builder for Spotify"
 authors = ["Harmonic Playlist"]
 edition = "2021"

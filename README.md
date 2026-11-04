@@ -117,26 +117,27 @@ cloudflared tunnel run --url http://127.0.0.1:5199 harmonic-playlist
 
 ## Masaüstü uygulaması (macOS `.dmg` / Windows `.exe`)
 
-Aynı kod tabanı Tauri 2 ile paketlenir: macOS'te `.app` + `.dmg`, Windows'ta `.exe` (NSIS) + `.msi`. Rust gereklidir (`rustup`), Windows'ta ayrıca **WebView2** ve MSVC Build Tools.
+Aynı kod tabanı Tauri 2 ile paketlenir: macOS'te `.app` + `.dmg` (**yalnızca Apple Silicon / M serisi**), Windows'ta `.exe` (NSIS) + `.msi`. Rust gereklidir (`rustup`), Windows'ta ayrıca **WebView2** ve MSVC Build Tools.
 
-### macOS
+### macOS (Apple Silicon)
+
+Yalnızca M1/M2/M3/M4 çipleri desteklenir; Intel Mac ve universal (fat) binary hedeflenmez.
 
 ```bash
 npm install
-npm run desktop:build      # .app + .dmg üretir
-open "src-tauri/target/release/bundle/macos/Harmonic Playlist.app"
+npm run desktop:build:mac   # arm64 .app + .dmg üretir
+open "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Harmonic Playlist.app"
 ```
 
 Çıktılar:
 
 ```text
-src-tauri/target/release/bundle/dmg/Harmonic Playlist_0.1.0_aarch64.dmg
-src-tauri/target/release/bundle/macos/Harmonic Playlist.app
+src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Harmonic Playlist_0.1.1_aarch64.dmg
+src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Harmonic Playlist.app
 ```
 
-- Intel Mac için: `npm run desktop:build:mac-intel`
-- İki mimariyi tek dosyada: `npx tauri build --target universal-apple-darwin`
 - Geliştirme modunda canlı HMR: `npm run desktop:dev`
+- Intel Mac için build **desteklenmez**; `x86_64-apple-darwin` hedefi ve Rosetta yolu kaldırıldı.
 
 > İmzasız `.dmg` başka bir Mac'te açılırken Gatekeeper uyarır (**System Settings → Privacy & Security → Open Anyway**). Dağıtım için Apple Developer ID ile imzalama + notarization gerekir; CI iş akışı ilgili secret'ları okur.
 
@@ -160,7 +161,7 @@ src-tauri\target\release\bundle\msi\Harmonic Playlist_0.1.0_x64_en-US.msi
 
 ### GitHub Actions ile iki platform
 
-`.github/workflows/desktop-build.yml` hazır. `v*` etiketi push edildiğinde ya da **Actions → Desktop installers → Run workflow** ile macOS `.dmg` ve Windows `.exe` üretilir.
+`.github/workflows/desktop-build.yml` hazır. `v*` etiketi push edildiğinde ya da **Actions → Desktop installers → Run workflow** ile macOS `.dmg` (yalnızca Apple Silicon) ve Windows `.exe` üretilir.
 
 Gerekli tek secret:
 
@@ -226,13 +227,13 @@ http://127.0.0.1:8888/auth/callback   ← masaüstü uygulaması
 | `npm run dev` | Vite dev sunucusu (`:5199`), HMR |
 | `npm run build` | Tip kontrolü + production build (`dist/`) |
 | `npm run preview` | Build'i yerel olarak sun |
-| `npm test` | 88 Vitest testi (Camelot, harmoni, BPM, sequencer, store, auth, playlist) |
+| `npm test` | 116 Vitest testi (Camelot, harmoni, BPM, sequencer, store, auth, playlist, preview) |
 | `npm run test:watch` | Testleri izleme modunda çalıştır |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test:coverage` | Kapsam raporu (Vitest coverage) |
 | `npm run desktop:dev` | Tauri masaüstü penceresi, canlı HMR |
-| `npm run desktop:build` | macOS `.app` + `.dmg` (Windows'ta `.exe` + `.msi`) |
-| `npm run desktop:build:mac-intel` | Intel Mac hedefi |
+| `npm run desktop:build` | Geçerli platformun paketi (macOS'te `.app` + `.dmg`, Windows'ta `.exe` + `.msi`) |
+| `npm run desktop:build:mac` | Apple Silicon (arm64) `.dmg` — M serisi Mac |
 | `npm run desktop:build:win` | Windows hedefi (Windows makinede) |
 
 ---

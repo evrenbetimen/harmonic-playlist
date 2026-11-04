@@ -107,7 +107,7 @@ Bugünkü tek paketli yapı, Faz 5'e kadar korunabilir. Monorepo'ya geçiş, mas
 | Analitik | ✅ Tamam | Histogramlar, sapma, kaynak dağılımı |
 | Testler | ✅ 75 test | Motor + store + auth + entegrasyon |
 | Hata sınırı | ✅ Tamam | ErrorBoundary + store hata bandı |
-| Masaüstü kabuk | ✅ Tamam | Tauri 2, loopback OAuth, `.dmg` üretildi |
+| Masaüstü kabuk | ✅ Tamam | Tauri 2, loopback OAuth, `.dmg` üretildi (Apple Silicon) |
 | Windows kurulumu | ⚠️ CI hazır | `.exe`/`.msi` Windows runner'da üretiliyor |
 | Kod imzalama / notarization | ⬜ Yok | Sertifika gerekli |
 | OS keychain token | ⬜ Yok | Şu an `localStorage` |
@@ -192,7 +192,7 @@ Yapılanlar:
 
 1. **Kabuk** ✅ `src-tauri/` — `productName: Harmonic Playlist`, `identifier: com.harmonicplaylist.desktop`, `frontendDist: "../dist"`, `devUrl: http://127.0.0.1:5199`.
 2. **OAuth loopback** ✅ `oauth_callback_listener` (Rust) `127.0.0.1:8888` dinliyor; `tauri-plugin-opener` sistem tarayıcısını açıyor; kod IPC ile dönüyor. Token hâlâ `localStorage`'da.
-3. **Paketleme** ✅ `npm run desktop:build` → `.app` + `.dmg` (aarch64). Windows hedefi CI'da (`nsis` + `msi`).
+3. **Paketleme** ✅ `npm run desktop:build:mac` → `.app` + `.dmg` (arm64 / Apple Silicon). Windows hedefi CI'da (`nsis` + `msi`).
 4. **Simge** ✅ `src-tauri/app-icon.svg` → `npx tauri icon` ile tüm boyutlar.
 
 Kalanlar:

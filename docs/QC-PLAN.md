@@ -275,9 +275,11 @@ Her sürüm adayında (release candidate) uygulanır. İşaretleme: ✅ geçti �
 
 ### 4.10 Masaüstü kurulum (macOS `.dmg` / Windows `.exe`)
 
-**macOS**
+**macOS (Apple Silicon)**
 
-- [ ] `Harmonic Playlist_0.1.0_aarch64.dmg` açılıyor, sürükle-bırak ile `/Applications`'a kuruluyor.
+- [ ] `lipo -archs "Harmonic Playlist.app/Contents/MacOS/harmonic-playlist"` yalnızca `arm64` döndürüyor (x86_64 dilimi yok).
+- [ ] `Harmonic Playlist_0.1.1_aarch64.dmg` açılıyor, sürükle-bırak ile `/Applications`'a kuruluyor.
+- [ ] Intel Mac'te açılmayacağı README'de ve sürüm notlarında yazılı.
 - [ ] İlk açılışta Gatekeeper uyarısı çıkıyor; **System Settings → Privacy & Security → Open Anyway** ile açılıyor.
 - [ ] Pencere başlığı `Harmonic Playlist`; trafik ışıkları içerikle çakışmıyor, üst çubuk sürüklenebiliyor.
 - [ ] Pencere yeniden boyutlandırılınca üç kolon düzeni bozulmuyor; playlist en az 5 satır gösteriyor.
@@ -365,7 +367,7 @@ Release hattı (Faz 5):
 3. İmzalama ve notarization.
 4. Artefaktları yükle, SHA-256 manifesti üret.
 
-> Mevcut `.github/workflows/desktop-build.yml` 2. adımı karşılıyor: `v*` etiketinde veya manuel tetiklemede macOS universal `.dmg` ile Windows `nsis` + `msi` üretip artefakt olarak yüklüyor. 3. adım (imzalama) secret'lar girilene kadar atlanıyor.
+> Mevcut `.github/workflows/desktop-build.yml` 2. adımı karşılıyor: `v*` etiketinde veya manuel tetiklemede macOS **arm64 (Apple Silicon)** `.dmg` ile Windows `nsis` + `msi` üretip artefakt olarak yüklüyor. Intel Mac hedefi yoktur. 3. adım (imzalama) secret'lar girilene kadar atlanıyor.
 5. Updater manifestini imzala ve yayınla.
 6. Smoke test: temiz sanal makinede kur → aç → demo set üret.
 

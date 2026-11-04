@@ -1,7 +1,7 @@
 {
   "name": "harmonic-playlist",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Harmonic DJ set builder for Spotify — Camelot-aware, energy-profiled desktop app",
   "scripts": {
@@ -15,8 +15,7 @@
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
-    "desktop:build:mac": "tauri build --target aarch64-apple-darwin",
-    "desktop:build:mac-intel": "tauri build --target x86_64-apple-darwin",
+    "desktop:build:mac": "tauri build --target aarch64-apple-darwin --bundles dmg",
     "desktop:build:win": "tauri build --target x86_64-pc-windows-msvc"
   },
   "dependencies": {
