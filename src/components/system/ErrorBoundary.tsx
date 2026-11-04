@@ -64,3 +64,56 @@ export class ErrorBoundary extends Component<Props, State> {
     );
   }
 }
+
+interface SectionProps {
+  children: ReactNode;
+  /** Shown instead of the children when they throw. */
+  label?: string;
+}
+
+interface SectionState {
+  error: Error | null;
+}
+
+/**
+ * Boundary for one panel, not the whole app.
+ *
+ * A malformed Spotify payload used to take down the entire window because the
+ * only boundary sat at the root. Data-driven widgets (playlist lists, imported
+ * crates) belong behind their own boundary so the rest of the set builder — and
+ * the user's unsaved plan — survives a single bad response.
+ */
+export class SectionBoundary extends Component<SectionProps, SectionState> {
+  state: SectionState = { error: null };
+
+  static getDerivedStateFromError(error: Error): SectionState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('[harmonic-playlist] section crash', error, info.componentStack);
+  }
+
+  private reset = () => this.setState({ error: null });
+
+  render(): ReactNode {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <div className="rounded-xl border border-rose-500/25 bg-rose-500/[0.07] p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-300">
+          {this.props.label ?? 'Bu bölüm yüklenemedi'}
+        </p>
+        <p className="mt-1 break-words text-[10px] leading-relaxed text-fog-300">
+          {this.state.error.message}
+        </p>
+        <button
+          onClick={this.reset}
+          className="mt-2 text-[10px] font-medium text-neon-mint underline underline-offset-2"
+        >
+          Tekrar dene →
+        </button>
+      </div>
+    );
+  }
+}

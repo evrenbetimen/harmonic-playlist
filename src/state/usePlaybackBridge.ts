@@ -78,6 +78,24 @@ export function usePlaybackBridge(): void {
     transitionedRef.current = false;
   }, [index]);
 
+  // A regenerated set may no longer contain the track that is playing. Without
+  // this the transport keeps advertising a stale (often demo) track while the
+  // playlist shows real Spotify songs — which reads as "the preview is fake".
+  const plan = useSetStore((s) => s.plan);
+  useEffect(() => {
+    const player = usePlayerStore.getState();
+    if (!player.track) return;
+    // A cleared set (new crate import) or a regenerated one may no longer
+    // contain what is playing.
+    const stillInSet = plan
+      ? plan.slots.some((slot) => slot.track.id === player.track?.id)
+      : false;
+    if (!stillInSet) {
+      previewEngine.stop(0.2);
+      player.clear();
+    }
+  }, [plan]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;

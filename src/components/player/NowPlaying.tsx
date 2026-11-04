@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { keyColor, keyColorAlpha } from '@/core/camelot';
 import { cn, formatTime } from '@/lib/format';
-import { usePlayerStore } from '@/state/usePlayerStore';
+import { usePlayerStore, type AudioSource } from '@/state/usePlayerStore';
 import { useSetStore } from '@/state/useSetStore';
-import { playNext, playPrevious, playSlot, togglePlay } from '@/state/playback';
+import { playNext, playPrevious, playSlot, retryPreview, togglePlay } from '@/state/playback';
 import {
   IconPause,
   IconPlay,
@@ -14,6 +14,7 @@ import {
 
 export function NowPlaying() {
   const player = usePlayerStore();
+  const { audioSource, audioNote } = player;
   const plan = useSetStore((s) => s.plan);
   const selected = useSetStore((s) => s.selectedSlot);
 
@@ -39,7 +40,13 @@ export function NowPlaying() {
       <div className="flex items-center justify-between px-4 pb-2 pt-3">
         <div className="flex items-center gap-2">
           <p className="label-xs">Now Playing</p>
-          {isCurrent && player.playing && (
+          {player.loading && (
+            <span className="flex items-center gap-1 text-[8px] font-semibold tracking-widest text-fog-400">
+              <span className="h-1 w-1 animate-pulse rounded-full bg-neon-mint" />
+              ÖNİZLEME ARANIYOR
+            </span>
+          )}
+          {!player.loading && isCurrent && player.playing && (
             <span className="flex items-center gap-1 text-[8px] font-semibold tracking-widest text-neon-mint">
               <span className="h-1 w-1 animate-pulse rounded-full bg-neon-mint" />
               LIVE
@@ -195,9 +202,58 @@ export function NowPlaying() {
             HARM
           </span>
         </div>
+
+        {/*
+          Spotify stopped returning `preview_url`, so "playing" can mean three
+          different things. Saying which one is not decoration: without it the
+          user hears a synth pad and believes the track sounded like that.
+        */}
+        {track && audioSource && (
+          <div
+            className={cn(
+              'mt-2 flex items-start gap-1.5 rounded-lg border px-2 py-1.5 text-[9px] leading-snug',
+              audioSource === 'synth'
+                ? 'border-amber-400/25 bg-amber-400/[0.07] text-amber-200'
+                : 'border-white/[0.06] bg-white/[0.025] text-fog-400',
+            )}
+          >
+            <span className="mt-[1px] shrink-0 font-semibold uppercase tracking-wider">
+              {audioSourceLabel(audioSource)}
+            </span>
+            <span className="min-w-0 flex-1">
+              {audioNote ??
+                (audioSource === 'synth'
+                  ? 'Sentetik önizleme çalınıyor.'
+                  : '30 sn gerçek önizleme çalınıyor.')}
+            </span>
+            {audioSource === 'synth' && !player.loading && (
+              <button
+                onClick={() => void retryPreview()}
+                className="shrink-0 underline underline-offset-2 hover:text-white"
+              >
+                Tekrar dene
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
+}
+
+function audioSourceLabel(source: NonNullable<AudioSource>): string {
+  switch (source) {
+    case 'spotify':
+      return 'spotify';
+    case 'isrc':
+      return 'isrc';
+    case 'itunes':
+      return 'apple';
+    case 'search':
+      return 'arama';
+    default:
+      return 'synth';
+  }
 }
 
 function waveform(seed: string): number[] {

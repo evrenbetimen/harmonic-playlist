@@ -79,6 +79,19 @@ export function missingPlaylistScopes(): string[] {
   return PLAYLIST_READ_SCOPES.filter((scope) => !granted.has(scope));
 }
 
+/**
+ * The stored scope string is only a hint: Spotify returns the *currently*
+ * granted scopes on refresh, and a refresh token minted after the upgrade can
+ * already carry them even though the cached `scope` says otherwise. Refresh
+ * once and re-read before sending the user through OAuth again.
+ */
+export async function ensurePlaylistScopes(): Promise<string[]> {
+  if (missingPlaylistScopes().length === 0) return [];
+  const refreshed = await refreshToken();
+  if (!refreshed) return missingPlaylistScopes();
+  return missingPlaylistScopes();
+}
+
 /** The URI to paste into the Spotify dashboard for the current build/target. */
 export function recommendedRedirectUri(): string {
   if (usesLoopbackListener()) return DESKTOP_REDIRECT_URI;

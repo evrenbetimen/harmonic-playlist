@@ -1,18 +1,41 @@
 import { camelotToPitchClass, keyColor } from '@/core/camelot';
 import type { TrackWithKey } from '@/core/types';
+import {
+  markPreviewStale,
+  resolvePreviewByIsrc,
+  resolvePreviewByItunes,
+  resolvePreviewBySearch,
+} from '@/services/previews';
 
 /**
  * Preview engine.
  *
  * Two sources, one crossfader:
- *   · Spotify 30s MP3  → decoded into an AudioBuffer (sample-accurate starts)
- *   · Demo tracks      → a procedural chord pad synthesised from the Camelot
- *                        key + BPM, so the app is fully playable offline and
- *                        the "harmonic" promise is actually audible.
+ *   · 30s MP3/M4P preview → decoded into an AudioBuffer (sample-accurate starts)
+ *   · Demo tracks         → a procedural chord pad synthesised from the Camelot
+ *                           key + BPM, so the app is fully playable offline and
+ *                           the "harmonic" promise is actually audible.
+ *
+ * The synth is the **last** resort, not the default. Spotify stopped returning
+ * `preview_url` in Nov 2024, so a real Spotify track resolves its preview
+ * through the Apple iTunes Search API (CORS-enabled, strict title+artist
+ * match). Deezer is kept as a best-effort exact-ISRC path but its JSON API
+ * sends no CORS header, so in a browser it fails and is skipped. Only when
+ * everything fails does the pad play, and the UI is told which happened so the
+ * user is never lied to about what is coming out of the speakers.
  *
  * Every voice owns a GainNode. Switching tracks ramps the old gain to 0 while
  * the new one ramps up — that is the crossfade, not a CSS animation.
  */
+
+export type PreviewSource = 'spotify' | 'isrc' | 'search' | 'itunes' | 'synth';
+
+export interface PlayReport {
+  ok: boolean;
+  source: PreviewSource;
+  /** Human-readable reason the synth was used, when it was. */
+  note?: string;
+}
 
 interface Voice {
   gain: GainNode;
@@ -79,16 +102,22 @@ export class PreviewEngine {
 
   /**
    * Start a track, crossfading from whatever is playing.
-   * Returns false when the browser refuses to start audio.
+   *
+   * Preview resolution order for a real Spotify track:
+   *   1. `track.previewUrl` (still present for some responses / cached tracks)
+   *   2. ISRC → Deezer (exact recording match, when the runtime allows CORS)
+   *   3. title+artist → iTunes Search (CORS-enabled; strict title+artist match)
+   *   4. title+artist → Deezer (guarded by an artist check)
+   *   5. synth pad, reported as such so the UI can say so
    */
-  async play(track: TrackWithKey, crossfadeOverride?: number): Promise<boolean> {
+  async playReport(track: TrackWithKey, crossfadeOverride?: number): Promise<PlayReport> {
     const ctx = this.ensure();
     this.suspended = false;
     if (ctx.state === 'suspended') {
       try {
         await ctx.resume();
       } catch {
-        return false;
+        return { ok: false, source: 'synth', note: 'Tarayıcı sesi başlatmadı.' };
       }
     }
 
@@ -97,15 +126,79 @@ export class PreviewEngine {
     this.voice = null;
 
     const dest = this.master;
-    if (!dest) return false;
+    if (!dest) return { ok: false, source: 'synth', note: 'Ses grafiği kurulamadı.' };
 
-    const voice = track.previewUrl
-      ? await this.createBufferVoice(ctx, dest, track, fade)
-      : this.createSynthVoice(ctx, dest, track, fade);
+    // 1. Direct preview URL (Spotify used to provide one; cached tracks may).
+    if (track.previewUrl) {
+      const voice = await this.createBufferVoice(ctx, dest, track.previewUrl, fade);
+      if (voice) {
+        this.voice = voice;
+        return { ok: true, source: 'spotify' };
+      }
+      // Expired/CORS-blocked URL: fall through to the resolvers rather than
+      // jumping straight to the synth.
+      markPreviewStale(track.isrc ?? null, track.title, track.artist);
+    }
 
-    if (!voice) return false;
-    this.voice = voice;
-    return true;
+    // Demo tracks have no real audio behind them by definition.
+    if (track.features.source === 'demo' || track.id.startsWith('demo-')) {
+      this.voice = this.createSynthVoice(ctx, dest, track, fade);
+      return { ok: true, source: 'synth', note: 'Demo parça — sentetik önizleme.' };
+    }
+
+    // 2. ISRC → Deezer. Exact recording, no guessing. Kept first because a
+    //    hit is authoritative; in a browser the request is CORS-blocked and
+    //    resolves to `null` immediately, so it costs nothing.
+    if (track.isrc) {
+      const resolved = await resolvePreviewByIsrc(track.isrc);
+      if (resolved) {
+        const voice = await this.createBufferVoice(ctx, dest, resolved.url, fade);
+        if (voice) {
+          this.voice = voice;
+          return { ok: true, source: 'isrc' };
+        }
+      }
+    }
+
+    // 3. iTunes Search — the path that actually works in the browser.
+    const itunes = await resolvePreviewByItunes(track.title, track.artist, {
+      artists: track.artists,
+      durationMs: track.durationMs,
+    });
+    if (itunes) {
+      const voice = await this.createBufferVoice(ctx, dest, itunes.url, fade);
+      if (voice) {
+        this.voice = voice;
+        return { ok: true, source: 'itunes' };
+      }
+      // URL resolved but could not be fetched/decoded (expired, offline).
+      markPreviewStale(track.isrc ?? null, track.title, track.artist);
+    }
+
+    // 4. Title + artist search on Deezer, guarded by an artist match.
+    const searched = await resolvePreviewBySearch(track.title, track.artist);
+    if (searched) {
+      const voice = await this.createBufferVoice(ctx, dest, searched.url, fade);
+      if (voice) {
+        this.voice = voice;
+        return { ok: true, source: 'search' };
+      }
+    }
+
+    // 5. Nothing real available.
+    this.voice = this.createSynthVoice(ctx, dest, track, fade);
+    return {
+      ok: true,
+      source: 'synth',
+      note: track.isrc
+        ? 'Bu kayıt için 30 sn önizleme bulunamadı — sentetik önizleme çalınıyor.'
+        : 'ISRC yok ve eşleşen önizleme bulunamadı — sentetik önizleme çalınıyor.',
+    };
+  }
+
+  /** Back-compat wrapper: callers that only need success/failure. */
+  async play(track: TrackWithKey, crossfadeOverride?: number): Promise<boolean> {
+    return (await this.playReport(track, crossfadeOverride)).ok;
   }
 
   pause(): void {
@@ -171,10 +264,9 @@ export class PreviewEngine {
   private async createBufferVoice(
     ctx: AudioContext,
     dest: GainNode,
-    track: TrackWithKey,
+    url: string,
     fade: number,
   ): Promise<Voice | null> {
-    const url = track.previewUrl!;
     let buffer = this.buffers.get(url);
 
     if (!buffer) {
@@ -189,8 +281,9 @@ export class PreviewEngine {
         }
         this.buffers.set(url, buffer);
       } catch {
-        // CORS / expired URL → fall back to the synth so playback never dies.
-        return this.createSynthVoice(ctx, dest, track, fade);
+        // CORS / expired URL → return null and let the caller try the next
+        // resolver (ISRC, search) before giving up on real audio.
+        return null;
       }
     }
 

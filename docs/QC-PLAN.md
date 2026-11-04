@@ -30,6 +30,7 @@ Mevcut durum: **75 test / 6 dosya**, tümü geçiyor.
 | `tests/sequencer.test.ts` | 15 | Uçtan uca üretim, determinizm, BPM penceresi, enerji eğrisi, köprü, boş krate, sürükle-bırak sonrası yeniden hesap |
 | `tests/views.test.ts` | 12 | Krate filtresi, janra sayımı, `setPlan`, `appendTrack` (tekrar/boş plan), rota adaylarının farklılaşması, sertliğin saflığa etkisi |
 | `tests/auth.test.ts` | 5 | Eski oturumda eksik playlist okuma izni tespiti, bozuk token'da çökmeme, authorize URL'inin doğru scope'ları istemesi |
+| `tests/playlists.test.ts` | 13 | `/me/playlists` normalizasyonu (`items.total`, `tracks: null`, idsiz kayıt), `/items` içe aktarma (`item.item`, eski `item.track`, podcast/yerel filtre), ReccoBeats UUID → Spotify id çözümü |
 
 Çalıştırma:
 
@@ -100,7 +101,10 @@ Her sürüm adayında (release candidate) uygulanır. İşaretleme: ✅ geçti �
 ### 4.1 İlk açılış
 
 - [ ] Uygulama kimlik bilgisi olmadan açılıyor ve 40 şarkılık set üretiyor.
-- [ ] İlk set < 1.5 sn içinde görünüyor.
+- [ ] Son 14 gün içinde bir Spotify krate'i yüklendiyse açılışta **o** geri geliyor (`SPOTIFY` rozeti), demo değil.
+- [ ] Hiç kayıtlı krate yoksa demo havuzu (190 parça) yükleniyor.
+- [ ] `SPOTIFY` rozetine tıklamak demo krate'e dönüyor; yeni bir plan üretiliyor.
+- [ ] İlk set < 1.5 sn içinde görünüyor (önizleme araması set üretimini bekletmiyor).
 - [ ] Seçili şarkı otomatik olarak 1. sıraya geliyor; çark, geçiş paneli ve QC dolu.
 - [ ] Konsolda hata veya uyarı yok (React key uyarıları dahil).
 
@@ -144,7 +148,13 @@ Her sürüm adayında (release candidate) uygulanır. İşaretleme: ✅ geçti �
 - [ ] Şarkı değişiminde gerçek crossfade duyuluyor (4 sn).
 - [ ] Crossfade süresi 0 sn'ye çekilince geçiş sertleşiyor.
 - [ ] Ses seviyesi ve mute çalışıyor; RMS metre hareket ediyor.
-- [ ] `preview_url` olmayan demo şarkıda synth pad çalıyor.
+- [ ] `preview_url` olmayan demo şarkıda synth pad çalıyor ve panel "SYNTH · sentetik önizleme" diyor.
+- [ ] Gerçek Spotify şarkısında panel "APPLE · 30 sn gerçek önizleme çalınıyor" diyor; süre ~0:29–0:30 ilerliyor.
+- [ ] Apple'da eşleşme yoksa panel sentetik uyarısını ve "Tekrar dene" düğmesini gösteriyor; düğme önbelleği atıp yeniden arıyor.
+- [ ] Yanlış sanatçılı bir sonuç (ör. "Downfall" + Taylor Swift) asla çalmıyor; synth'e düşüyor.
+- [ ] Remix/edit adayı, orijinal istendiğinde reddediliyor.
+- [ ] Aynı şarkı ikinci kez çalındığında ağ isteği tekrarlanmıyor (önbellek).
+- [ ] Konsolda Deezer CORS hatası **yok** (Deezer tarayıcıda varsayılan kapalı).
 - [ ] Bozuk/expired preview URL'sinde ses kesilmiyor, synth'e düşüyor.
 - [ ] Duraklat/devam zaman çizgisini doğru koruyor.
 - [ ] Sekme arka plana alınınca çalma makul davranıyor (suspend/resume).
@@ -184,15 +194,24 @@ Her sürüm adayında (release candidate) uygulanır. İşaretleme: ✅ geçti �
 - [ ] Üst çubukta avatarın yanında görünen ad yazıyor (geniş ekranda); sadece baş harf değil.
 - [ ] Spotify modal'ı ad, e-posta ve `premium` rozetini gösteriyor.
 - [ ] "Listele" çalma listelerini getiriyor; her satırda kapak, ad, parça sayısı ve özel/genel durumu var.
+- [ ] Parça sayısı `items.total` alanından okunuyor (`tracks.total` artık dönmüyor); alan hiç yoksa satır "parça sayısı yüklenince belli olur" diyor.
+- [ ] Başkasının çalma listesi listede görünüyor ama **kilitli**: kilit ikonu, `aria-disabled`, "kilitli · yalnızca sahibi okunabilir" ve altında tek bir açıklama var.
+- [ ] Kilitli satıra tıklamak istek atmıyor (403'e giden ölü yol yok).
+- [ ] Ortak çalışılan (`collaborative: true`) yabancı liste kilitli **değil**.
+- [ ] 200'den fazla listesi olan hesapta arama kutusu görünüyor ve listeyi anında filtreliyor.
 - [ ] Bir çalma listesine tıklamak içindeki şarkıları krate olarak yüklüyor; kaynak rozeti `SPOTIFY` oluyor.
+- [ ] Çalma listesi okuma `/playlists/{id}/items` üzerinden yapılıyor; `/tracks` 403 dönerse içe aktarma yine de çalışıyor.
+- [ ] Podcast bölümleri (`type: 'episode'`) ve yerel dosyalar içe aktarmada atlanıyor.
+- [ ] ReccoBeats yanıtında `id` bir UUID olsa bile Spotify kimliği `href` üzerinden çözülüyor; içe aktarma boş dönmüyor.
 - [ ] Eski (playlist okuma izni olmayan) oturumda "Ek izin gerekli" kutusu çıkıyor ve "Listele" pasif kalıyor.
 - [ ] "İzni yenile" yeniden giriş akışını başlatıyor; dönüşte liste açılıyor.
 - [ ] Yalnızca yerel dosya / podcast içeren çalma listesinde boş liste yerine açıklayıcı hata görünüyor.
 - [ ] Tür seçimi gerçek krate yüklüyor; kaynak rozeti `spotify`/`reccobeats`.
 - [ ] `/audio-features` 403 dönerse ReccoBeats'e düşüyor.
 - [ ] Her iki sağlayıcı da başarısızsa açıklayıcı hata görünüyor.
-- [ ] Playlist yayınlama özel liste oluşturuyor ve URL dönüyor.
+- [ ] Playlist yayınlama özel liste oluşturuyor ve URL dönüyor (`POST /me/playlists`; `/users/{id}/playlists` 403).
 - [ ] Demo şarkılar playlist'e eklenmiyor.
+- [ ] Yalnızca demo parça içeren set yayınlanmaya çalışılınca boş liste oluşturmak yerine uyarı veriyor.
 
 ### 4.9 Krate / Harmonik Rotalar / Analitik
 

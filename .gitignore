@@ -26,3 +26,6 @@ src-tauri/gen/
 # Tauri / Rust build output
 src-tauri/target/
 src-tauri/gen/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

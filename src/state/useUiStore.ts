@@ -5,11 +5,12 @@ import { create } from 'zustand';
  *
  * The rail used to be decorative, so every section now maps to a real view:
  *   · builder   — set generation controls + wheel/timeline/playlist
+ *   · playlist  — full-size tracklist plus the user's Spotify playlist library
  *   · crate     — the full source pool the sequencer can draw from
  *   · routes    — several candidate routes compared side by side
  *   · analytics — distributions and QC evidence
  */
-export type ViewId = 'builder' | 'crate' | 'routes' | 'analytics';
+export type ViewId = 'builder' | 'playlist' | 'crate' | 'routes' | 'analytics';
 
 interface UiState {
   view: ViewId;

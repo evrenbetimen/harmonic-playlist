@@ -52,6 +52,12 @@ export interface Track {
   artworkUrl: string | null;
   /** 30s MP3, expires — always re-read from the API, never cache long-term. */
   previewUrl: string | null;
+  /**
+   * Global recording identifier from Spotify `external_ids.isrc`. Kept so a
+   * preview can be resolved elsewhere when Spotify returns `preview_url: null`
+   * (which it now does for every third-party app).
+   */
+  isrc?: string | null;
   durationMs: number;
   /** Spotify popularity 0..100 */
   popularity: number;

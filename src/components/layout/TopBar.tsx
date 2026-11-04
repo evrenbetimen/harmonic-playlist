@@ -14,6 +14,7 @@ interface Props {
 export function TopBar({ query, onQuery, onOpenSpotify }: Props) {
   const source = useSetStore((s) => s.source);
   const trackCount = useSetStore((s) => s.allTracks.length);
+  const loadDemo = useSetStore((s) => s.loadDemo);
   const authStatus = useAuthStore((s) => s.status);
   const profile = useAuthStore((s) => s.profile);
   const connected = authStatus === 'connected';
@@ -73,12 +74,31 @@ export function TopBar({ query, onQuery, onOpenSpotify }: Props) {
       </div>
 
       <div className="flex items-center gap-2">
-        <div
+        {/*
+          The demo crate is a fallback, not a trap: boot prefers the last real
+          Spotify crate, so the user needs an explicit way back to the offline
+          pool (e.g. to demo the app without a connection).
+        */}
+        <button
+          type="button"
+          onClick={() => {
+            if (source === 'spotify') {
+              loadDemo();
+              // A fresh crate needs a plan, otherwise the builder looks broken.
+              void useSetStore.getState().generate();
+            }
+          }}
+          disabled={source === 'demo'}
+          title={
+            source === 'demo'
+              ? 'Demo krate etkin — 190 çevrimdışı örnek parça'
+              : 'Demo krate’e dön (190 çevrimdışı parça)'
+          }
           className={cn(
-            'hidden items-center gap-2 rounded-lg border px-2.5 py-1.5 lg:flex',
+            'hidden items-center gap-2 rounded-lg border px-2.5 py-1.5 transition lg:flex',
             source === 'demo'
               ? 'border-neon-mint/20 bg-neon-mint/[0.06]'
-              : 'border-[#1DB954]/30 bg-[#1DB954]/10',
+              : 'border-[#1DB954]/30 bg-[#1DB954]/10 hover:border-neon-mint/35 hover:bg-neon-mint/[0.08]',
           )}
         >
           <span
@@ -91,7 +111,7 @@ export function TopBar({ query, onQuery, onOpenSpotify }: Props) {
             {source === 'demo' ? 'DEMO CRATE' : 'SPOTIFY'}
           </span>
           <span className="num text-[10px] text-fog-400">{trackCount}</span>
-        </div>
+        </button>
 
         <button className="btn-ghost h-8 shrink-0 whitespace-nowrap" onClick={onOpenSpotify}>
           <IconSpotify className="h-3.5 w-3.5 text-[#1DB954]" />

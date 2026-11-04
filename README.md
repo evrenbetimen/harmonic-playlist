@@ -225,7 +225,7 @@ http://127.0.0.1:8888/auth/callback   ← masaüstü uygulaması
 | `npm run dev` | Vite dev sunucusu (`:5199`), HMR |
 | `npm run build` | Tip kontrolü + production build (`dist/`) |
 | `npm run preview` | Build'i yerel olarak sun |
-| `npm test` | 75 Vitest testi (Camelot, harmoni, BPM, sequencer, store, auth) |
+| `npm test` | 88 Vitest testi (Camelot, harmoni, BPM, sequencer, store, auth, playlist) |
 | `npm run test:watch` | Testleri izleme modunda çalıştır |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test:coverage` | Kapsam raporu (Vitest coverage) |
@@ -269,7 +269,7 @@ harmonic-playlist/
 │  ├─ capabilities/          # İzinler (opener, drag)
 │  └─ icons/                 # Uygulama simgeleri
 ├─ .github/workflows/        # macOS .dmg + Windows .exe CI
-├─ tests/                    # 75 Vitest birim + entegrasyon testi
+├─ tests/                    # 88 Vitest birim + entegrasyon testi
 ├─ docs/                     # Roadmap, mimari, QC planı
 └─ vite.config.ts            # alias, worker formatı, test ayarları
 ```
@@ -307,9 +307,11 @@ Ayrıntılı veri akışı, worker protokolü, ses grafiği ve sağlayıcı soyu
 
 ## Kalite
 
-- **75 test / 6 dosya** — Camelot tablosu referans değerleriyle doğrulanır (`8A = A min`, `8B = C maj`, `5A = C min`, `1B = B maj`).
+- **114 test / 9 dosya** — Camelot tablosu referans değerleriyle doğrulanır (`8A = A min`, `8B = C maj`, `5A = C min`, `1B = B maj`).
 - Harmonik skorlar, yarım ton çakışması, tritone sınırı, BPM katlama, enerji eğrisi ve deterministik set üretimi test edilir.
 - Krate filtreleme, rota adaylarının farklılaşması, `setPlan` ve `appendTrack` sözleşmeleri store seviyesinde test edilir.
+- Spotify yük şemaları sözleşme testleriyle sabitlenir: `/me/playlists` → `items.total`, `/playlists/{id}/items` → `item.item`, ReccoBeats UUID → Spotify id.
+- Önizleme çözümlemesi (`tests/previews.test.ts`, `tests/playback.test.ts`) yanlış şarkı çalmayı engelleyen kuralları sabitler: sanatçı uyuşmazlığı, remix-vs-original, boş `previewUrl`, ağ hatası, 429 retry, cache ve "Tekrar dene" akışı.
 - `npx tsc --noEmit` temiz, `npm run build` başarılı.
 - Hata sınırı (ErrorBoundary), 401 token yenileme, 429 `Retry-After` ve bozuk önizleme URL'sinde synth fallback.
 - Test piramidi ve manuel QC kontrol listesi (Krate / Rotalar / Analitik ve masaüstü kurulum dahil): [`docs/QC-PLAN.md`](docs/QC-PLAN.md).

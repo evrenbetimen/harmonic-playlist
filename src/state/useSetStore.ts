@@ -6,10 +6,15 @@ import type {
   TrackWithKey,
 } from '@/core/types';
 import { getDemoTracks, DEMO_GENRES } from '@/data/mockTracks';
+import { readCache, writeCache } from '@/services/cache';
 import { planInWorker } from '@/workers/planClient';
 
 export type PlanStatus = 'idle' | 'planning' | 'ready' | 'error';
 export type SourceMode = 'demo' | 'spotify';
+
+/** Last imported crate, so a relaunch does not silently fall back to demo. */
+const CRATE_CACHE_KEY = 'crate:last';
+const CRATE_TTL = 14 * 24 * 60 * 60 * 1000;
 
 interface SetState {
   source: SourceMode;
@@ -38,6 +43,10 @@ interface SetState {
   appendTrack: (track: TrackWithKey) => void;
   selectSlot: (index: number | null) => void;
   loadTracks: (tracks: TrackWithKey[], source?: SourceMode) => void;
+  /** Restore the last Spotify crate from cache (boot). Returns false when none. */
+  restoreCrate: () => boolean;
+  /** Leave Spotify data and go back to the built-in demo crate. */
+  loadDemo: () => void;
   reset: () => void;
 }
 
@@ -221,6 +230,38 @@ export const useSetStore = create<SetState>((set, get) => ({
       plan: null,
       status: 'idle',
       selectedSlot: null,
+    });
+    // Remember the last real crate so the next launch opens with the user's
+    // music instead of the demo pool.
+    if (source === 'spotify' && tracks.length > 0) {
+      writeCache(CRATE_CACHE_KEY, tracks, CRATE_TTL);
+    }
+  },
+
+  restoreCrate: () => {
+    const cached = readCache<TrackWithKey[]>(CRATE_CACHE_KEY);
+    if (!cached || cached.length === 0) return false;
+    set({
+      allTracks: toTracksWithKey(cached),
+      source: 'spotify',
+      activeGenres: [],
+      plan: null,
+      status: 'idle',
+      selectedSlot: null,
+      error: null,
+    });
+    return true;
+  },
+
+  loadDemo: () => {
+    set({
+      allTracks: getDemoTracks(),
+      source: 'demo',
+      activeGenres: ['afro-house'],
+      plan: null,
+      status: 'idle',
+      selectedSlot: null,
+      error: null,
     });
   },
 

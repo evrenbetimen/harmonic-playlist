@@ -5,7 +5,6 @@ import {
   addTracksToPlaylist,
   createPlaylist,
   getAudioFeatures,
-  getMe,
   getPlaylistTracks,
   getReccoFeatures,
   getTracks,
@@ -150,6 +149,7 @@ function mapTrack(t: SpotifyTrack, f: NormalisedFeatures, genre: string): Track 
     album: t.album?.name ?? '',
     artworkUrl: t.album?.images?.[0]?.url ?? null,
     previewUrl: t.preview_url,
+    isrc: t.external_ids?.isrc ?? null,
     durationMs: t.duration_ms,
     popularity: t.popularity,
     explicit: t.explicit,
@@ -171,13 +171,19 @@ function mapTrack(t: SpotifyTrack, f: NormalisedFeatures, genre: string): Track 
 }
 
 export async function publishPlaylist(name: string, plan: PlanResult): Promise<string> {
-  const me = await getMe();
+  // Demo tracks have no Spotify URI, so a demo-only set would publish an empty
+  // playlist. Fail loudly instead of creating a hollow one.
+  const uris = plan.slots
+    .filter((s) => !s.track.id.startsWith('demo-') && s.track.uri.startsWith('spotify:track:'))
+    .map((s) => s.track.uri);
+  if (uris.length === 0) {
+    throw new Error(
+      'Bu sette Spotify parçası yok. Önce Spotify’dan bir krate yükleyip seti yeniden üret.',
+    );
+  }
   const description = `Harmonic Playlist ${plan.metrics.harmonicPurity}% harmonic purity · ${plan.metrics.averageScore} avg score · ${plan.options.profile}`;
-  const playlist = await createPlaylist(me.id, name, description);
-  await addTracksToPlaylist(
-    playlist.id,
-    plan.slots.filter((s) => !s.track.id.startsWith('demo-')).map((s) => s.track.uri),
-  );
+  const playlist = await createPlaylist(name, description);
+  await addTracksToPlaylist(playlist.id, uris);
   return playlist.external_urls.spotify;
 }
 
@@ -213,8 +219,7 @@ export async function loadPlaylistCrate(
 
 /** Lightweight playlist summary for the picker (no track hydration). */
 export async function listUserPlaylists(limit = 50): Promise<SpotifyPlaylist[]> {
-  const playlists = await getUserPlaylists(limit);
-  // Spotify returns entries with a null `owner` when a collaborative playlist
-  // lost its owner; those cannot be opened reliably.
-  return playlists.filter((p) => p?.id && p.owner);
+  // Normalisation in the client already drops entries without an id, so this is
+  // intentionally a thin wrapper: the UI renders `trackCount`/`owner` directly.
+  return getUserPlaylists(limit);
 }

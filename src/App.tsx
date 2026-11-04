@@ -40,7 +40,6 @@ export default function App() {
 
   const plan = useSetStore((s) => s.plan);
   const selected = useSetStore((s) => s.selectedSlot);
-  const status = useSetStore((s) => s.status);
   const error = useSetStore((s) => s.error);
   const selectSlot = useSetStore((s) => s.selectSlot);
   const generate = useSetStore((s) => s.generate);
@@ -55,13 +54,17 @@ export default function App() {
   const booted = useRef(false);
   const authBooted = useRef(false);
   const checkAuth = useAuthStore((s) => s.check);
+  const restoreCrate = useSetStore((s) => s.restoreCrate);
 
-  // First paint: generate a set so the app never opens empty.
+  // First paint: prefer the last real Spotify crate, then generate a set so the
+  // app never opens empty. Demo is the fallback, not the default.
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
-    if (!plan && status === 'idle') void generate();
-  }, [plan, status, generate]);
+    restoreCrate();
+    const state = useSetStore.getState();
+    if (!state.plan && state.status === 'idle') void state.generate();
+  }, [restoreCrate]);
 
   // OAuth callback (?code=…) + hydrate the top bar from the stored token.
   // The ref prevents React StrictMode from exchanging the same code twice.

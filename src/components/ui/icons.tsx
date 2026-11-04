@@ -114,6 +114,14 @@ export const IconAlert = (p: P) => (
   </svg>
 );
 
+/** Closed padlock — used for playlists the API refuses to read. */
+export const IconLock = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
+    <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+  </svg>
+);
+
 export const IconInfo = (p: P) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="9" />

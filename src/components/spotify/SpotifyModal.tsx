@@ -5,6 +5,7 @@ import {
   spotifyConfig,
   beginLogin,
   checkRedirectConfig,
+  ensurePlaylistScopes,
   missingPlaylistScopes,
   recommendedRedirectUri,
 } from '@/services/spotify/auth';
@@ -15,9 +16,18 @@ import {
   publishPlaylist,
 } from '@/services/spotify/library';
 import type { SpotifyPlaylist } from '@/services/spotify/client';
+import { canReadPlaylistItems } from '@/services/spotify/client';
 import { useSetStore } from '@/state/useSetStore';
 import { useAuthStore } from '@/state/useAuthStore';
-import { IconCheck, IconDisc, IconSpotify, IconX, IconZap } from '@/components/ui/icons';
+import {
+  IconCheck,
+  IconDisc,
+  IconLock,
+  IconSpotify,
+  IconX,
+  IconZap,
+} from '@/components/ui/icons';
+import { SectionBoundary } from '@/components/system/ErrorBoundary';
 
 interface Props {
   open: boolean;
@@ -42,6 +52,10 @@ export function SpotifyModal({ open, onClose }: Props) {
   const [info, setInfo] = useState<string | null>(null);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[] | null>(null);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [playlistQuery, setPlaylistQuery] = useState('');
+  // Scope checking can trigger a token refresh, so the "missing" answer is
+  // stateful rather than derived on every render.
+  const [missingScopes, setMissingScopes] = useState<string[]>([]);
 
   const loadTracks = useSetStore((s) => s.loadTracks);
   const plan = useSetStore((s) => s.plan);
@@ -52,15 +66,26 @@ export function SpotifyModal({ open, onClose }: Props) {
   const checkAuth = useAuthStore((s) => s.check);
 
   useEffect(() => {
-    if (open && authStatus === 'idle') void checkAuth();
+    if (!open) return;
+    if (authStatus === 'idle') void checkAuth();
   }, [open, authStatus, checkAuth]);
+
+  // Recompute the scope hint whenever the session changes (login, refresh).
+  useEffect(() => {
+    if (!open) return;
+    setMissingScopes(authStatus === 'connected' ? missingPlaylistScopes() : []);
+  }, [open, authStatus, profile?.id]);
 
   if (!open) return null;
 
   const configured = isSpotifyConfigured();
   const loggedIn = authStatus === 'connected';
   const redirectCheck = checkRedirectConfig();
-  const missingScopes = loggedIn ? missingPlaylistScopes() : [];
+  const visiblePlaylists = (playlists ?? []).filter((p) => {
+    const q = playlistQuery.trim().toLowerCase();
+    if (!q) return true;
+    return p.name.toLowerCase().includes(q) || (p.owner.display_name ?? '').toLowerCase().includes(q);
+  });
 
   const handleLoad = async () => {
     setBusy(true);
@@ -83,7 +108,15 @@ export function SpotifyModal({ open, onClose }: Props) {
     setError(null);
     setInfo(null);
     try {
-      setPlaylists(await listUserPlaylists());
+      // A refresh token can already carry the new scopes even when the cached
+      // scope string predates them, so try that before asking for a re-login.
+      const missing = await ensurePlaylistScopes();
+      setMissingScopes(missing);
+      if (missing.length > 0) return;
+
+      // 200 is enough to cover a normal crate library without making the modal
+      // wait on 12 sequential pages (the account can hold 500+ playlists).
+      setPlaylists(await listUserPlaylists(200));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Playlistler yüklenemedi');
     } finally {
@@ -361,49 +394,128 @@ export function SpotifyModal({ open, onClose }: Props) {
                   </button>
                 </div>
 
-                {playlists === null && (
-                  <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] leading-relaxed text-fog-400">
-                    Çalma listelerini listeleyip içindeki şarkılardan doğrudan krate
-                    oluşturabilirsin. Önce "Listele"ye bas.
-                  </p>
+                {playlists !== null && playlists.length > 8 && (
+                  <input
+                    value={playlistQuery}
+                    onChange={(e) => setPlaylistQuery(e.target.value)}
+                    placeholder={`${playlists.length} liste içinde ara…`}
+                    className="mb-1.5 h-7 w-full rounded-lg border border-white/[0.07] bg-white/[0.03] px-2 text-[10.5px] text-fog-100 placeholder:text-fog-400/70 outline-none focus:border-neon-mint/40"
+                  />
                 )}
 
-                {playlists !== null && playlists.length === 0 && (
-                  <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] text-fog-400">
-                    Bu hesapta çalma listesi bulunamadı.
-                  </p>
-                )}
+                <SectionBoundary label="Çalma listeleri yüklenemedi">
+                  {playlists === null && (
+                    <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] leading-relaxed text-fog-400">
+                      Çalma listelerini listeleyip içindeki şarkılardan doğrudan krate
+                      oluşturabilirsin. Önce "Listele"ye bas.
+                    </p>
+                  )}
 
-                {playlists !== null && playlists.length > 0 && (
-                  <div className="scroll-slim max-h-[190px] space-y-1 overflow-y-auto pr-0.5">
-                    {playlists.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => void handleImport(p)}
-                        disabled={busy}
-                        className="flex w-full items-center gap-2 rounded-lg border border-white/[0.055] bg-white/[0.025] px-2 py-1.5 text-left transition hover:border-neon-mint/30 hover:bg-neon-mint/[0.06] disabled:opacity-50"
-                      >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded bg-white/[0.05]">
-                          {p.images?.[0]?.url ? (
-                            <img src={p.images[0].url} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <IconDisc className="h-3 w-3 text-fog-400" />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[10.5px] font-medium text-fog-100">
-                            {p.name}
-                          </span>
-                          <span className="num block truncate text-[8.5px] text-fog-400">
-                            {p.tracks.total} parça
-                            {p.owner?.id !== profile?.id ? ` · ${p.owner?.display_name ?? 'başka hesap'}` : ''}
-                            {p.public === false ? ' · özel' : ''}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  {playlists !== null && playlists.length === 0 && (
+                    <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] text-fog-400">
+                      Bu hesapta çalma listesi bulunamadı.
+                    </p>
+                  )}
+
+                  {playlists !== null && playlists.length > 0 && visiblePlaylists.length === 0 && (
+                    <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] text-fog-400">
+                      "{playlistQuery}" ile eşleşen liste yok.
+                    </p>
+                  )}
+
+                  {visiblePlaylists.length > 0 && (
+                    <div className="scroll-slim max-h-[190px] space-y-1 overflow-y-auto pr-0.5">
+                      {visiblePlaylists.map((p) => {
+                        /*
+                         * Spotify's `Get Playlist Items` endpoint only works for
+                         * playlists you own or collaborate on (verified: 40/40
+                         * own playlists 200, 10/10 foreign playlists 403; follow
+                         * and Premium make no difference). Showing the row as
+                         * clickable would send the user into a guaranteed
+                         * failure, so it is rendered disabled with the reason.
+                         */
+                        const locked = !canReadPlaylistItems(p, profile?.id);
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => void handleImport(p)}
+                            disabled={busy || locked}
+                            aria-disabled={locked}
+                            title={
+                              locked
+                                ? 'Spotify bu listenin içeriğini okumaya izin vermiyor — yalnızca sahibi ve ortak çalışanları okuyabilir.'
+                                : undefined
+                            }
+                            className={cn(
+                              'flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition disabled:opacity-100',
+                              locked
+                                ? 'cursor-not-allowed border-white/[0.04] bg-white/[0.012]'
+                                : 'border-white/[0.055] bg-white/[0.025] hover:border-neon-mint/30 hover:bg-neon-mint/[0.06] disabled:opacity-50',
+                            )}
+                          >
+                            <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded bg-white/[0.05]">
+                              {p.images[0]?.url ? (
+                                <img
+                                  src={p.images[0].url}
+                                  alt=""
+                                  className={cn(
+                                    'h-full w-full object-cover',
+                                    locked && 'opacity-35 grayscale',
+                                  )}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <IconDisc className="h-3 w-3 text-fog-400" />
+                              )}
+                              {locked && (
+                                <span className="absolute inset-0 flex items-center justify-center bg-ink-950/55">
+                                  <IconLock className="h-3 w-3 text-fog-400" />
+                                </span>
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span
+                                className={cn(
+                                  'block truncate text-[10.5px] font-medium',
+                                  locked ? 'text-fog-400' : 'text-fog-100',
+                                )}
+                              >
+                                {p.name}
+                              </span>
+                              <span className="num block truncate text-[8.5px] text-fog-400">
+                                {locked && 'kilitli · yalnızca sahibi okunabilir'}
+                                {!locked &&
+                                  (p.trackCount != null
+                                    ? `${p.trackCount} parça`
+                                    : 'parça sayısı yüklenince belli olur')}
+                                {p.owner.id && p.owner.id !== profile?.id
+                                  ? ` · ${p.owner.display_name ?? 'başka hesap'}`
+                                  : ''}
+                                {!p.isPublic ? ' · özel' : ''}
+                                {p.collaborative ? ' · ortak' : ''}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* One explanation for the whole list beats a tooltip nobody
+                      hovers. */}
+                  {visiblePlaylists.some((p) => !canReadPlaylistItems(p, profile?.id)) && (
+                    <p className="mt-1 rounded-lg border border-white/[0.055] bg-white/[0.02] px-2.5 py-2 text-[9px] leading-relaxed text-fog-400">
+                      <span className="inline-flex items-center gap-1 font-semibold text-fog-300">
+                        <IconLock className="h-2.5 w-2.5" />
+                        Kilitli listeler
+                      </span>{' '}
+                      — Spotify API'si yalnızca <em>senin</em> listelerini ve ortak
+                      çalıştığın listeleri okumaya izin veriyor. Başkasının listesini
+                      kullanmak için Spotify'da açıp kopyala (Ctrl/Cmd+A → yeni liste →
+                      yapıştır); kopyası senin olduğu için sorunsuz içe aktarılır.
+                    </p>
+                  )}
+                </SectionBoundary>
               </div>
 
               <div className="border-t border-white/[0.06] pt-3">

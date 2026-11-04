@@ -262,6 +262,7 @@ flowchart TD
 
 - Spotify endpoint'i **403/404** dönerse `null` kabul edilir; bu bir hata değil, bilinen kısıttır.
 - ReccoBeats yanıtı Spotify uyumlu alanlara eşlenir; eksik alanlar güvenli varsayılanlara düşer.
+- ReccoBeats `id` alanı **kendi UUID'sidir**; Spotify kimliği yalnızca `href` içinde (`open.spotify.com/track/<id>`) gelir. `getReccoFeatures` bu yüzden kimliği `href`'ten çözer — aksi halde özellik haritası hiçbir parçayla eşleşmez ve içe aktarma boş döner.
 - Her özellik kaydı `source` alanını taşır. UI bunu güven rozeti olarak gösterebilir.
 - **Yerel DSP** (`local-dsp`) henüz uygulanmadı. Arayüz buna hazır: bir sağlayıcı `NormalisedFeatures` ürettiği sürece sequencer değişmez. Planlanan yaklaşım: Web Audio/FFmpeg ile mono 44.1 kHz'e indirgeme → spektral tepe analizi (key) → onset autocorrelation (BPM) → RMS/loudness (energy).
 
@@ -313,25 +314,86 @@ sequenceDiagram
 - 429'da `Retry-After` okunur, en fazla 8 sn beklenir, 3 denemeyle sınırlanır.
 - Hiçbir gizli anahtar repoda tutulmaz; `.env` `.gitignore` kapsamındadır.
 
+### 7.1 Spotify Web API uç nokta değişiklikleri (2025+)
+
+Spotify 2025 sonunda çalma listesi uç noktalarını yeniden adlandırdı; eski yollar **403 Forbidden** dönüyor. İstemci bu yüzden yeni yolları kullanır, eski alanları da okuyarak önbellekteki yanıtlarla uyumlu kalır.
+
+| İşlem | Eski | Yeni | Yanıt farkı |
+| --- | --- | --- | --- |
+| Liste parçalarını okuma | `GET /playlists/{id}/tracks` | `GET /playlists/{id}/items` | parça `item.track` → `item.item`; `type: 'episode'` podcast'leri gelir |
+| Listeye parça ekleme | `POST /playlists/{id}/tracks` | `POST /playlists/{id}/items` | gövde aynı (`{ uris }`) |
+| Liste oluşturma | `POST /users/{id}/playlists` | `POST /me/playlists` | gövde aynı |
+| Liste parça sayısı | `playlist.tracks.total` | `playlist.items.total` | `tracks` alanı hiç dönmüyor (`null`) |
+
+- `getPlaylistTracks` hem `item.item` hem `item.track` alanını okur; `is_local` ve `type === 'episode'` kayıtları atlanır.
+- `normalisePlaylist` parça sayısını `items.total` → `tracks.total` sırasıyla çözer; ikisi de yoksa `trackCount: null` olur ve arayüz "parça sayısı yüklenince belli olur" yazar — `0` göstermek yanıltıcı olurdu.
+- Tüm liste alanları normalize edilir; `id`'siz kayıtlar atılır ve modal'ın liste bölümü kendi `SectionBoundary`'si içinde durur, böylece bozuk bir yanıt tüm arayüzü çökertmez.
+
+### 7.2 Başkasının çalma listesi neden açılmıyor
+
+`GET /playlists/{id}/items` dokümanı birebir şunu diyor:
+
+> This endpoint is only accessible for playlists owned by the current user or playlists the user is a collaborator of. A `403 Forbidden` status code will be returned if the user is neither the owner nor a collaborator.
+
+Gerçek hesapla ölçüm (596 liste tarandı):
+
+| Durum | Sonuç |
+| --- | --- |
+| Kendi listelerim | 40/40 → `200` |
+| Başkalarının listeleri (Boiler Room, SSL Music, Bootshaus…) | 10/10 → `403` |
+| Liste meta'sı (ad, kapak, sahip, parça sayısı) | `200` ✅ |
+| Takip ettikten sonra tekrar | yine `403` |
+| `collaborative: true` olan yabancı liste | `200` |
+
+Bu bir uygulama hatası değil, API kuralı; takip etmek, Premium veya quota artırmak değiştirmiyor. Bu yüzden `canReadPlaylistItems(playlist, myUserId)` kararı verir ve modal yabancı satırları **görünür ama kilitli** gösterir (kilit ikonu, `aria-disabled`, tek bir açıklama, kopyalama önerisi). Satıra tıklamak istek atmaz — kullanıcıyı garanti bir 403'e göndermek yerine nedeni gösteriyoruz. Embed sayfasını kazımak ToS ihlali olduğu için yapılmıyor.
+
 ---
 
 ## 8. Ses grafiği
 
 ```text
-Spotify MP3 ──fetch──▶ decodeAudioData ──▶ AudioBufferSourceNode ─┐
-                                                                  ├─▶ GainNode ─┐
-Demo track ──▶ OscillatorNode ×5 ──▶ BiquadFilter ──▶ GainNode ──┘             │
-                ▲ LFO (filter)  ▲ pulse (gain)                                 │
-                                                                               ▼
-                                                              master GainNode ──▶ AnalyserNode ──▶ destination
+Spotify previewUrl ──fetch──▶ decodeAudioData ──▶ AudioBufferSourceNode ─┐
+iTunes previewUrl  ──fetch──▶ decodeAudioData ──▶ AudioBufferSourceNode ──┤
+Demo track ──▶ OscillatorNode ×5 ──▶ BiquadFilter ──▶ GainNode ───────────┤
+                ▲ LFO (filter)  ▲ pulse (gain)                            │
+                                                                          ▼
+                                                        master GainNode ──▶ AnalyserNode ──▶ destination
 ```
 
 - **Crossfade gerçektir**: eski voice'un gain'i `linearRampToValueAtTime(0.0001, now + fade)` ile sönerken yeni voice `0.0001 → 1` yükselir. Süre varsayılan 4 sn, transport bar'dan ayarlanır.
 - **Buffer cache**: en fazla 12 decode edilmiş buffer; FIFO tahliyesi.
-- **CORS / süresi dolmuş URL**: fetch veya decode başarısızsa synth'e düşer; çalma asla sessizce ölmez.
+- **CORS / süresi dolmuş URL**: fetch veya decode başarısızsa bir sonraki çözümleyici denenir; hepsi başarısızsa synth'e düşer. Çalma asla sessizce ölmez.
 - **Synth**: Camelot anahtarı → pitch class → kök frekans. Minörde `[0,3,7,10,12]`, majörde `[0,4,7,11,12]`. Yavaş LFO filtreyi, BPM/2 osilatörü gain'i modüle eder.
 - **Meter**: `AnalyserNode.getFloatTimeDomainData` → RMS → `min(1, rms * 3.2)`.
 - `AudioContext` yalnızca kullanıcı etkileşiminden sonra `resume()` edilir (tarayıcı politikası).
+
+### 8.1 Önizleme çözümleme zinciri
+
+Spotify `preview_url` alanını Kasım 2024'ten beri üçüncü taraf uygulamalara **`null`** döndürüyor (dokümanda "Deprecated"). Bu yüzden gerçek ses başka bir sağlayıcıdan gelmek zorunda. Sıra:
+
+| # | Kaynak | Eşleşme | Tarayıcıda çalışır? |
+| --- | --- | --- | --- |
+| 1 | `track.previewUrl` | Spotify'ın verdiği URL | Bazı önbelleklenmiş kayıtlarda |
+| 2 | Deezer `GET /track/isrc:{isrc}` | ISRC — birebir kayıt | **Hayır** (CORS başlığı yok) |
+| 3 | **iTunes Search** `GET /search?term=…&entity=song&limit=5&country=…` | başlık + sanatçı (katı) | **Evet** (`ACAO: *`) |
+| 4 | Deezer `GET /search?q=…` | başlık + sanatçı | Hayır (aynı CORS sorunu) |
+| 5 | Synth pad | — | Her zaman |
+
+**Neden Deezer varsayılan kapalı:** `api.deezer.com` yanıtlarında `Access-Control-Allow-Origin` yok. Ölçüm: tarayıcıdan `fetch` → `TypeError: Failed to fetch`; aynı istek `curl` ile 200. Eski kod bu hatayı yutup synth'e düşüyordu, kullanıcı da "neden demo sesi çıkıyor?" diye soruyordu. `setDeezerAvailable(true)` yalnızca CORS'u aşan bir masaüstü proxy'si varsa çağrılmalı.
+
+**Neden iTunes ve neden katı eşleşme:** Apple `lookup?isrc=` parametresini **desteklemiyor** (mainstream ISRC'lerde `resultCount: 0`) ve arama sonuçlarında `isrc` alanı **yok**. Yani ISRC ile doğrulama imkânsız; doğrulama tamamen başlık + sanatçı üzerinde. Yanlış şarkı çalmak synth'ten daha kötü olduğu için kurallar muhafazakâr:
+
+- Sanatçı: birincil sanatçı (ilk ayırıcıya kadar) eşit olmalı; `&`, `,`, `feat.`, `x`, `vs.` ayrıştırılır. "Marten Lou" ≈ "Marten Lou & CamelPhat"; "Taylor Swift" ≠ "Innellea".
+- Başlık: parantez/köşeli parantez, `feat.` ve ` - Remix` kuyrukları atılmış çekirdek başlık eşit olmalı (aksan/büyük-küçük harf duyarsız, Türkçe `İ/ı/ş/ğ/ü/ö/ç` katlanır).
+- Aday `remix|edit|vip|bootleg|mashup|flip|rework|dub|instrumental|acapella|sped up|slowed` içeriyorsa ve istenen başlık içermiyorsa **reddedilir** (farklı kayıt).
+- `kind === 'song'` ve `previewUrl` dolu olmalı.
+- Birden fazla geçerli aday varsa ham başlığa tam eşleşme, sonra süre yakınlığı ile sıralanır.
+
+**Ülke:** `VITE_ITUNES_COUNTRY` (varsayılan `TR`). Apple kataloğu mağazaya göre değişir.
+
+**Davranış sözleşmesi:** `playReport()` `{ ok, source: 'spotify'|'isrc'|'itunes'|'search'|'synth', note? }` döner; `playback.ts` bunu `usePlayerStore.audioSource/audioNote`'a yazar. UI kaynağı **her zaman** yazar — sentetik çalarken bunu söylemek opsiyonel değil.
+
+**Önbellek:** pozitif sonuç 7 gün, negatif sonuç 6 saat (`preview:itunes:{country}:{title}|{artist}` anahtarı). Aynı şarkı için eşzamanlı iki çağrı tek istek paylaşır (`inFlight`). Çalma başarısız olursa `markPreviewStale` anahtarı **hemen** geçersiz kılar (TTL `-1`), böylece expired imzalı URL kalıcı "yok" gibi görünmez. "Tekrar dene" `clearPreviewCache` ile aynı şeyi manuel yapar.
 
 ---
 
@@ -351,7 +413,9 @@ Demo track ──▶ OscillatorNode ×5 ──▶ BiquadFilter ──▶ GainNod
 | `selectedSlot` | Çark/panellerin odak indeksi |
 | `flashIndex` | Sürükle-bırak sonrası vurgu |
 
-Eylemler: `generate`, `toggleGenre`, `patchOptions`, `reorder`, `removeSlot`, `insertBridge`, `selectSlot`, `loadTracks`, `reset`.
+Eylemler: `generate`, `toggleGenre`, `patchOptions`, `reorder`, `removeSlot`, `insertBridge`, `selectSlot`, `loadTracks`, `restoreCrate`, `loadDemo`, `reset`.
+
+`loadTracks` gerçek krate'i `crate:last` anahtarına yazar (14 gün). Açılışta `restoreCrate()` bunu geri yükler; demo **yalnızca** kayıtlı krate yoksa devreye girer. Üst çubuktaki `SPOTIFY` rozeti `loadDemo()` ile demo havuza dönüş sağlar.
 
 `reorder` ve `removeSlot`, **yeniden arama yapmaz**; `rebuildPlan()` ile yalnızca geçişleri ve metrikleri yeniden hesaplar. Bu, sürükle-bırakın anında geri bildirim vermesini sağlar.
 
