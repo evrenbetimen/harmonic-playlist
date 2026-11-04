@@ -17,6 +17,7 @@ import { QcPanel } from '@/components/player/QcPanel';
 import { TransportBar } from '@/components/player/TransportBar';
 import { SpotifyModal } from '@/components/spotify/SpotifyModal';
 import { CrateView } from '@/components/views/CrateView';
+import { PlaylistView } from '@/components/views/PlaylistView';
 import { RoutesView } from '@/components/views/RoutesView';
 import { AnalyticsView } from '@/components/views/AnalyticsView';
 import {
@@ -24,12 +25,14 @@ import {
   IconChart,
   IconDisc,
   IconGrid,
+  IconList,
   IconRoute,
   IconX,
 } from '@/components/ui/icons';
 
 const VIEW_TABS: Array<{ id: ViewId; label: string; icon: typeof IconGrid }> = [
   { id: 'builder', label: 'Set Builder', icon: IconGrid },
+  { id: 'playlist', label: 'Playlist', icon: IconList },
   { id: 'crate', label: 'Krate', icon: IconDisc },
   { id: 'routes', label: 'Rotalar', icon: IconRoute },
   { id: 'analytics', label: 'Analitik', icon: IconChart },
@@ -83,7 +86,7 @@ export default function App() {
     })();
   }, [checkAuth]);
 
-  // ⌘/Ctrl + Enter → regenerate; 1–4 → switch view.
+  // ⌘/Ctrl + Enter → regenerate; 1–5 → switch view.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -185,6 +188,12 @@ export default function App() {
                   <TransitionPanel plan={plan} selected={selected} />
                   <QcPanel plan={plan} />
                 </aside>
+              </main>
+            )}
+
+            {view === 'playlist' && (
+              <main className="flex min-h-0 flex-1 gap-3 p-3">
+                <PlaylistView onOpenSpotify={() => setSpotifyOpen(true)} />
               </main>
             )}
 

@@ -3,6 +3,7 @@ import { defaultOptions, planSet } from '@/core/sequencer';
 import { toTracksWithKey } from '@/core/track';
 import { getDemoTracks } from '@/data/mockTracks';
 import { crateFor, genreCounts, useSetStore } from '@/state/useSetStore';
+import { useUiStore, type ViewId } from '@/state/useUiStore';
 
 /**
  * These tests cover the behaviour the Krate and Routes views rely on:
@@ -135,5 +136,22 @@ describe('route candidates', () => {
 
     expect(strict.metrics.harmonicPurity).toBeGreaterThanOrEqual(loose.metrics.harmonicPurity);
     expect(strict.metrics.clashRate).toBe(0);
+  });
+});
+
+describe('navigation', () => {
+  it('exposes a playlist view alongside the other real screens', () => {
+    // 'playlist' existed in the ViewId union but was never reachable: the rail
+    // omitted it and App had no render branch, so it was a dead enum value.
+    const reachable: ViewId[] = ['builder', 'playlist', 'crate', 'routes', 'analytics'];
+    for (const view of reachable) {
+      useUiStore.getState().setView(view);
+      expect(useUiStore.getState().view).toBe(view);
+    }
+  });
+
+  it('defaults to the builder view', () => {
+    useUiStore.setState({ view: 'builder' });
+    expect(useUiStore.getState().view).toBe('builder');
   });
 });

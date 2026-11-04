@@ -4,6 +4,7 @@ import {
   IconChart,
   IconDisc,
   IconGrid,
+  IconList,
   IconRoute,
   IconSettings,
   IconSparkles,
@@ -11,6 +12,7 @@ import {
 
 const NAV: Array<{ id: ViewId; label: string; icon: typeof IconGrid; hint: string }> = [
   { id: 'builder', label: 'Set Builder', icon: IconGrid, hint: 'Set üret ve düzenle' },
+  { id: 'playlist', label: 'Playlist', icon: IconList, hint: 'Kaynak listeler ve aktif set' },
   { id: 'crate', label: 'Krate', icon: IconDisc, hint: 'Kaynak parça havuzu' },
   { id: 'routes', label: 'Harmonik Rotalar', icon: IconRoute, hint: 'Alternatif setleri karşılaştır' },
   { id: 'analytics', label: 'Analitik', icon: IconChart, hint: 'Metrikler ve kanıtlar' },

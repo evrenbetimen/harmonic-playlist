@@ -213,15 +213,27 @@ Her sürüm adayında (release candidate) uygulanır. İşaretleme: ✅ geçti �
 - [ ] Demo şarkılar playlist'e eklenmiyor.
 - [ ] Yalnızca demo parça içeren set yayınlanmaya çalışılınca boş liste oluşturmak yerine uyarı veriyor.
 
-### 4.9 Krate / Harmonik Rotalar / Analitik
+### 4.9 Playlist / Krate / Harmonik Rotalar / Analitik
 
 **Navigasyon**
 
-- [ ] Sol raydaki dört düğme (Set Builder, Krate, Harmonik Rotalar, Analitik) gerçekten ekran değiştiriyor; hiçbiri dekoratif değil.
+- [ ] Sol raydaki beş düğme (Set Builder, Playlist, Krate, Harmonik Rotalar, Analitik) gerçekten ekran değiştiriyor; hiçbiri dekoratif değil.
 - [ ] Aktif düğmede yeşil kenar çizgisi ve neon parıltı var; `aria-current="page"` set edilmiş.
-- [ ] `1`–`4` tuşları ilgili ekranı açıyor; bir input alanına yazarken tetiklenmiyor.
+- [ ] `1`–`5` tuşları ilgili ekranı açıyor; bir input alanına yazarken tetiklenmiyor.
 - [ ] `xl` altındaki genişliklerde ray gizleniyor ve üstteki yatay sekme şeridi aynı ekranları açıyor.
 - [ ] Ekran değiştirip geri dönünce aktif set, seçili şarkı ve oynatma durumu korunuyor.
+
+**Playlist (`PlaylistView`)**
+
+- [ ] Üstteki iki sekme (`Kaynak listelerim` / `Aktif set`) arasında geçiş yapılıyor; `aria-pressed` doğru.
+- [ ] Spotify oturumu yokken "Spotify hesabı bağlı değil" durumu ve bağlantı düğmesi çıkıyor.
+- [ ] Oturum varsa sekme açılır açılmaz liste kendiliğinden yükleniyor (ekstra "Listele" adımı yok).
+- [ ] Kilitli listeler satırında kilit ikonu, gri artwork ve "yalnızca sahibi..." açıklaması var; "Krate'e al" düğmesi görünmüyor.
+- [ ] Kendi listende "Krate'e al" çalışıyor, yeşil bilgi şeridi parça sayısını gösteriyor ve "Set Builder'a git" aktarıyor.
+- [ ] Arama liste adı ve sahip adına göre filtreliyor.
+- [ ] `Aktif set` sekmesinde metrikler (parça, süre, uyum, puan, BPM) plan ile aynı.
+- [ ] Sürükle-bırak sıralama ve kaldırma bu sekmede de çalışıyor; değişiklik Set Builder'a yansıyor.
+- [ ] Plan yokken boş durum metni görünüyor (boş beyaz alan değil).
 
 **Krate (`CrateView`)**
 

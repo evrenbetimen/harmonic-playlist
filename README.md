@@ -19,6 +19,7 @@ Spotify kütüphanesini (veya yerleşik demo krate'ini) analiz eder; tonal olara
 | **Köprü şarkılar** | Sert geçişlerde 1–2 şarkılık "bridge" önerisi; toplam ekleme 2 ile sınırlı. |
 | **Etkileşimli UI** | 3D Camelot çarkı, enerji/BPM zaman çizelgesi, sürükle-bırak sıralama, anlık geçiş rozetleri, QC raporu. |
 | **Krate ekranı** | 190 parçalık havuzun tamamı: janra/anahtar filtresi, tür dağılımı, sıralama, sete ekleme. Hangi şarkının neden seçilmediği görünür. |
+| **Playlist ekranı** | İki sekme: **Kaynak listelerim** (Spotify çalma listelerini listeler, kilitli olanları açıklar, tek tıkla krate'e alır) ve **Aktif set** (tam boy sürükle-bırak parça listesi + set metrikleri). |
 | **Harmonik Rotalar** | Aynı krateden 5 farklı geçerli set (farklı tohum / sertlik / profil) üretilir; saflık, ortalama geçiş ve enerji doğruluğuna göre karşılaştırılır, tek tıkla aktif set olur. |
 | **Analitik** | Geçiş not dağılımı, ton histogramı, BPM histogramı, enerji sapması, sanatçı tekrarı, veri kaynakları ve sorunlu geçiş listesi. |
 | **Önizleme** | Spotify 30 sn MP3'ü Web Audio ile çalar; gerçek gain-ramp crossfade uygular. Demo şarkılarda anahtar + BPM'e senkron synth pad çalar. |

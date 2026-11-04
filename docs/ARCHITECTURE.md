@@ -28,11 +28,12 @@ Uygulama **sunucusuz** çalışır. Kalıcı veri yoktur; yalnızca TTL'li `loca
 | View | Dosya | Okuduğu store | Yazdığı store |
 | --- | --- | --- | --- |
 | Set Builder | `components/builder/SetBuilder.tsx` + wheel/timeline/playlist | `useSetStore` | `options`, `activeGenres` |
+| Playlist | `components/views/PlaylistView.tsx` | `plan`, Spotify kitaplığı | `loadTracks`, `insertBridge` |
 | Krate | `components/views/CrateView.tsx` | `allTracks`, `activeGenres`, `plan` | `activeGenres`, `appendTrack` |
 | Harmonik Rotalar | `components/views/RoutesView.tsx` | `allTracks`, `options` | `setPlan` |
 | Analitik | `components/views/AnalyticsView.tsx` | `plan` | `selectSlot` |
 
-Aktif ekran `useUiStore` içinde tutulur; `1–4` tuşları ve sol ray aynı store'u kullanır. Bu ayrım önemli: **Krate ve Rotalar plan üretmez**, yalnızca mevcut havuzu ve adayları okur — böylece bir ekrandaki geçici filtre diğerini bozmaz.
+Aktif ekran `useUiStore` içinde tutulur; `1–5` tuşları ve sol ray aynı store'u kullanır. Bu ayrım önemli: **Krate ve Rotalar plan üretmez**, yalnızca mevcut havuzu ve adayları okur — böylece bir ekrandaki geçici filtre diğerini bozmaz.
 
 ---
 
