@@ -28,7 +28,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: https:; connect-src 'self' ipc: http://ipc.localhost https://api.spotify.com https://accounts.spotify.com https://api.reccobeats.com https://*.reccobeats.com https://*.scdn.co ws://127.0.0.1:5199 http://127.0.0.1:5199; worker-src 'self' blob:"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: https:; connect-src 'self' ipc: http://ipc.localhost https://api.spotify.com https://accounts.spotify.com https://api.reccobeats.com https://*.reccobeats.com https://*.scdn.co https://itunes.apple.com https://*.itunes.apple.com https://*.mzstatic.com ws://127.0.0.1:5199 http://127.0.0.1:5199; worker-src 'self' blob:"
     }
   },
   "bundle": {
